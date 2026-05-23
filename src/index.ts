@@ -1,7 +1,7 @@
 /**
- * @rhino-project/rhino-react - Main entry point
+ * @rhino-dev/rhino-react - Main entry point
  *
- * A comprehensive React library for Laravel backend applications with
+ * A comprehensive React library for Rhino backend applications with
  * full CRUD, pagination, soft deletes, and multi-tenant support.
  */
 

@@ -1,6 +1,6 @@
 # API Reference
 
-Complete reference for all hooks and utilities in @rhino-project/rhino-react.
+Complete reference for all hooks and utilities in @rhino-dev/rhino-react.
 
 ## Table of Contents
 
@@ -44,7 +44,7 @@ Access authentication state and methods for login, logout, and organization mana
 
 **Import:**
 ```typescript
-import { useAuth } from '@rhino-project/rhino-react';
+import { useAuth } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -125,7 +125,7 @@ Get the current organization slug from URL parameters or localStorage.
 
 **Import:**
 ```typescript
-import { useOrganization } from '@rhino-project/rhino-react';
+import { useOrganization } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -168,7 +168,7 @@ Fetch the current organization's complete data including relationships.
 
 **Import:**
 ```typescript
-import { useOwner } from '@rhino-project/rhino-react';
+import { useOwner } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -221,7 +221,7 @@ Check if an organization exists by slug (useful for registration/onboarding flow
 
 **Import:**
 ```typescript
-import { useOrganizationExists } from '@rhino-project/rhino-react';
+import { useOrganizationExists } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -268,7 +268,7 @@ Fetch paginated list of models with advanced filtering, sorting, search, and rel
 
 **Import:**
 ```typescript
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -399,7 +399,7 @@ Fetch a single model by ID with optional relationship loading and field selectio
 
 **Import:**
 ```typescript
-import { useModelShow } from '@rhino-project/rhino-react';
+import { useModelShow } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -471,7 +471,7 @@ Create a new model instance.
 
 **Import:**
 ```typescript
-import { useModelStore } from '@rhino-project/rhino-react';
+import { useModelStore } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -567,7 +567,7 @@ Update an existing model instance.
 
 **Import:**
 ```typescript
-import { useModelUpdate } from '@rhino-project/rhino-react';
+import { useModelUpdate } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -658,7 +658,7 @@ Soft delete a model (moves to trash, can be restored).
 
 **Import:**
 ```typescript
-import { useModelDelete } from '@rhino-project/rhino-react';
+import { useModelDelete } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -730,7 +730,7 @@ Fetch list of soft-deleted models that can be restored or permanently deleted.
 
 **Import:**
 ```typescript
-import { useModelTrashed } from '@rhino-project/rhino-react';
+import { useModelTrashed } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -795,7 +795,7 @@ Restore a soft-deleted model back to active state.
 
 **Import:**
 ```typescript
-import { useModelRestore } from '@rhino-project/rhino-react';
+import { useModelRestore } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -863,7 +863,7 @@ Permanently delete a model (cannot be recovered).
 
 **Import:**
 ```typescript
-import { useModelForceDelete } from '@rhino-project/rhino-react';
+import { useModelForceDelete } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -934,7 +934,7 @@ Execute multiple CRUD operations in a single atomic transaction with reference s
 
 **Import:**
 ```typescript
-import { useNestedOperations } from '@rhino-project/rhino-react';
+import { useNestedOperations } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1118,7 +1118,7 @@ Fetch audit trail for a specific model instance, showing all changes and who mad
 
 **Import:**
 ```typescript
-import { useModelAudit } from '@rhino-project/rhino-react';
+import { useModelAudit } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1238,7 +1238,7 @@ Fetch list of organization invitations with filtering and pagination.
 
 **Import:**
 ```typescript
-import { useInvitations } from '@rhino-project/rhino-react';
+import { useInvitations } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1343,7 +1343,7 @@ Create a new organization invitation for a user.
 
 **Import:**
 ```typescript
-import { useInviteUser } from '@rhino-project/rhino-react';
+import { useInviteUser } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1432,7 +1432,7 @@ Resend an existing invitation email.
 
 **Import:**
 ```typescript
-import { useResendInvitation } from '@rhino-project/rhino-react';
+import { useResendInvitation } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1478,7 +1478,7 @@ Cancel a pending invitation.
 
 **Import:**
 ```typescript
-import { useCancelInvitation } from '@rhino-project/rhino-react';
+import { useCancelInvitation } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1526,7 +1526,7 @@ Accept an invitation and join the organization.
 
 **Import:**
 ```typescript
-import { useAcceptInvitation } from '@rhino-project/rhino-react';
+import { useAcceptInvitation } from '@rhino-dev/rhino-react';
 ```
 
 **Signature:**
@@ -1595,11 +1595,11 @@ function AcceptInvitationPage() {
 
 ### extractPaginationFromHeaders()
 
-Extract pagination metadata from Laravel API response headers.
+Extract pagination metadata from Rhino backend API response headers.
 
 **Import:**
 ```typescript
-import { extractPaginationFromHeaders } from '@rhino-project/rhino-react/lib';
+import { extractPaginationFromHeaders } from '@rhino-dev/rhino-react/lib';
 ```
 
 **Signature:**
@@ -1630,7 +1630,7 @@ interface PaginationMeta {
 
 **Example:**
 ```typescript
-import { api, extractPaginationFromHeaders } from '@rhino-project/rhino-react/lib';
+import { api, extractPaginationFromHeaders } from '@rhino-dev/rhino-react/lib';
 
 async function fetchCustomData() {
   const response = await api.get('/api/acme/custom-endpoint');
@@ -1659,7 +1659,7 @@ Configured Axios instance with authentication and organization interceptors.
 
 **Import:**
 ```typescript
-import { api } from '@rhino-project/rhino-react/lib';
+import { api } from '@rhino-dev/rhino-react/lib';
 ```
 
 **Configuration:**
@@ -1676,7 +1676,7 @@ import { api } from '@rhino-project/rhino-react/lib';
 
 **Example:**
 ```typescript
-import { api } from '@rhino-project/rhino-react/lib';
+import { api } from '@rhino-dev/rhino-react/lib';
 
 // Manual API call
 async function customRequest() {
@@ -1713,7 +1713,7 @@ async function uploadFile(file) {
 **Configuration Override:**
 ```typescript
 // In your app setup
-import { api } from '@rhino-project/rhino-react/lib';
+import { api } from '@rhino-dev/rhino-react/lib';
 
 api.defaults.baseURL = 'https://api.production.com';
 api.defaults.timeout = 10000;
@@ -1738,7 +1738,7 @@ Utility function for conditional className merging (from clsx + tailwind-merge).
 
 **Import:**
 ```typescript
-import { cn } from '@rhino-project/rhino-react/lib';
+import { cn } from '@rhino-dev/rhino-react/lib';
 ```
 
 **Signature:**
@@ -1754,7 +1754,7 @@ function cn(...inputs: ClassValue[]): string
 
 **Example:**
 ```typescript
-import { cn } from '@rhino-project/rhino-react/lib';
+import { cn } from '@rhino-dev/rhino-react/lib';
 
 function Button({ variant, size, className, ...props }) {
   return (
@@ -1810,7 +1810,7 @@ import type {
   Organization,
   User,
   Role
-} from '@rhino-project/rhino-react';
+} from '@rhino-dev/rhino-react';
 ```
 
 See [src/types/index.ts](../rhino-client/src/types/index.ts) for complete type definitions.

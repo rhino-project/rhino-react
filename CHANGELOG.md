@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to @rhino-project/rhino-react will be documented in this file.
+All notable changes to @rhino-dev/rhino-react will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -60,7 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **TanStack Query 5.62.11** - Data fetching, caching, and state management
 - **React 19 support** - Compatible with latest React features
 - **TypeScript support** - Full type definitions and IntelliSense
-- **Barrel exports** - Clean import paths from `@rhino-project/rhino-react`
+- **Barrel exports** - Clean import paths from `@rhino-dev/rhino-react`
 - **Comprehensive documentation** - API reference, guides, and examples
 - **Example components** - Demo components for testing features
 
@@ -115,7 +115,7 @@ import { useModelIndex } from './hooks/useModel';
 
 **After:**
 ```typescript
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 ```
 
 **Breaking Changes:**

@@ -61,8 +61,8 @@ api.interceptors.response.use(
   (error) => {
     // Handle CORS errors
     if (!error.response && error.message && error.message.includes('CORS')) {
-      console.error('CORS Error: Make sure the Laravel backend CORS config includes your frontend URL');
-      return Promise.reject(new Error('CORS Error: Backend is not allowing requests from this origin. Please check Laravel CORS configuration.'));
+      console.error('CORS Error: Make sure the Rhino backend CORS config includes your frontend URL');
+      return Promise.reject(new Error('CORS Error: Backend is not allowing requests from this origin. Please check your Rhino backend CORS configuration.'));
     }
 
     if (error.response?.status === 401) {

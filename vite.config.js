@@ -15,7 +15,7 @@ export default defineConfig({
   build: {
     lib: {
       entry: resolve(__dirname, 'src/index.ts'),
-      name: '@rhino-project/rhino-react',
+      name: '@rhino-dev/rhino-react',
       formats: ['es'],
       fileName: () => 'index.js',
     },

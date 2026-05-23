@@ -1,8 +1,11 @@
 {
-  "name": "@rhino-project/rhino-react",
-  "version": "0.9.0",
-  "description": "Comprehensive React library for Laravel backends with full CRUD, pagination, soft deletes, and multi-tenant support. Works on web and React Native.",
+  "name": "@rhino-dev/rhino-react",
+  "version": "4.0.0",
+  "description": "Comprehensive React library for Rhino backends with full CRUD, pagination, soft deletes, and multi-tenant support. Works on web and React Native.",
   "type": "module",
+  "publishConfig": {
+    "access": "public"
+  },
   "main": "./dist/index.js",
   "module": "./dist/index.js",
   "react-native": "./src/index.ts",
@@ -26,6 +29,9 @@
     "react",
     "react-native",
     "laravel",
+    "rails",
+    "nestjs",
+    "adonisjs",
     "crud",
     "hooks",
     "api",
@@ -40,17 +46,17 @@
     "fullstack",
     "rhino"
   ],
-  "author": "Bruno Cipolla <bruno@startsoft.com.br>",
+  "author": "Bruno Cipolla <bruno@codalio.com>",
   "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/rhino-project/rhino-react.git",
-    "directory": "packages/@rhino-project/rhino-react"
+    "directory": "packages/@rhino-dev/rhino-react"
   },
   "bugs": {
     "url": "https://github.com/rhino-project/rhino-react/issues"
   },
-  "homepage": "https://github.com/rhino-project/rhino-react/tree/main/packages/@rhino-project/rhino-react#readme",
+  "homepage": "https://github.com/rhino-project/rhino-react/tree/main/packages/@rhino-dev/rhino-react#readme",
   "scripts": {
     "build": "vite build",
     "test": "vitest run",

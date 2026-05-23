@@ -40,7 +40,7 @@ Nested operations solve the problem of creating or modifying multiple related re
 ## Basic Usage
 
 ```jsx
-import { useNestedOperations } from '@rhino-project/rhino-react';
+import { useNestedOperations } from '@rhino-dev/rhino-react';
 
 function CreateBlogWithPosts() {
   const nestedOps = useNestedOperations();

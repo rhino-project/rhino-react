@@ -1,6 +1,6 @@
 # Filtering and Searching
 
-@rhino-project/rhino-react provides powerful filtering and search capabilities through the `useModelIndex` hook. Build complex queries with field filters, full-text search, sorting, and field selection.
+@rhino-dev/rhino-react provides powerful filtering and search capabilities through the `useModelIndex` hook. Build complex queries with field filters, full-text search, sorting, and field selection.
 
 ## Table of Contents
 
@@ -21,7 +21,7 @@ Filter records by field values using the `filters` parameter.
 ### Single Filter
 
 ```jsx
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 
 function PublishedPosts() {
   const { data: response } = useModelIndex('posts', {

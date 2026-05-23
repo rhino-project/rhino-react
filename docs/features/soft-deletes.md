@@ -37,7 +37,7 @@ When you soft delete a record:
 
 ## Available Operations
 
-@rhino-project/rhino-react provides three hooks for soft delete management:
+@rhino-dev/rhino-react provides three hooks for soft delete management:
 
 | Hook | Purpose |
 |------|---------|
@@ -55,7 +55,7 @@ Use `useModelDelete` to soft delete a record:
 ### Basic Usage
 
 ```jsx
-import { useModelDelete } from '@rhino-project/rhino-react';
+import { useModelDelete } from '@rhino-dev/rhino-react';
 
 function DeletePostButton({ postId }) {
   const deletePost = useModelDelete('posts');
@@ -138,7 +138,7 @@ Use `useModelTrashed` to fetch soft-deleted records:
 ### Basic Usage
 
 ```jsx
-import { useModelTrashed } from '@rhino-project/rhino-react';
+import { useModelTrashed } from '@rhino-dev/rhino-react';
 
 function TrashPage() {
   const { data: response, isLoading, error } = useModelTrashed('posts', {
@@ -243,7 +243,7 @@ Use `useModelRestore` to recover a soft-deleted record:
 ### Basic Usage
 
 ```jsx
-import { useModelRestore } from '@rhino-project/rhino-react';
+import { useModelRestore } from '@rhino-dev/rhino-react';
 
 function RestoreButton({ postId }) {
   const restorePost = useModelRestore('posts');
@@ -331,7 +331,7 @@ Use `useModelForceDelete` to permanently remove a record from the database:
 ### Basic Usage
 
 ```jsx
-import { useModelForceDelete } from '@rhino-project/rhino-react';
+import { useModelForceDelete } from '@rhino-dev/rhino-react';
 
 function ForceDeleteButton({ postId }) {
   const forceDelete = useModelForceDelete('posts');
@@ -445,7 +445,7 @@ import {
   useModelTrashed,
   useModelRestore,
   useModelForceDelete
-} from '@rhino-project/rhino-react';
+} from '@rhino-dev/rhino-react';
 
 function TrashManager({ model = 'posts' }) {
   const [page, setPage] = useState(1);

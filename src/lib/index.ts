@@ -1,5 +1,5 @@
 /**
- * Barrel exports for library utilities in @rhino-project/rhino-react
+ * Barrel exports for library utilities in @rhino-dev/rhino-react
  */
 
 // API Client

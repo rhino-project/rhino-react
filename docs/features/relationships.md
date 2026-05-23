@@ -1,6 +1,6 @@
 # Eager Loading Relationships
 
-@rhino-project/rhino-react supports eager loading of Laravel Eloquent relationships through the `includes` parameter. This allows you to fetch related data in a single request, avoiding the N+1 query problem.
+@rhino-dev/rhino-react supports eager loading of backend relationships through the `includes` parameter. This allows you to fetch related data in a single request, avoiding the N+1 query problem.
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@
 Use the `includes` parameter to eager load relationships:
 
 ```jsx
-import { useModelIndex, useModelShow } from '@rhino-project/rhino-react';
+import { useModelIndex, useModelShow } from '@rhino-dev/rhino-react';
 
 // Fetch posts with author
 const { data: response } = useModelIndex('posts', {

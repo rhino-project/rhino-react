@@ -1,8 +1,8 @@
-# @rhino-project/rhino-react
+# @rhino-dev/rhino-react
 
 > A comprehensive React & React Native library for Rhino backend applications with full CRUD, pagination, soft deletes, multi-tenant support, and TypeScript generics.
 
-[![npm version](https://badge.fury.io/js/@rhino-project%2Frhino-react.svg)](https://www.npmjs.com/package/@rhino-project/rhino-react)
+[![npm version](https://badge.fury.io/js/@rhino-project%2Frhino-react.svg)](https://www.npmjs.com/package/@rhino-dev/rhino-react)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -27,11 +27,11 @@
 ## 📦 Installation
 
 ```bash
-npm install @rhino-project/rhino-react
+npm install @rhino-dev/rhino-react
 # or
-yarn add @rhino-project/rhino-react
+yarn add @rhino-dev/rhino-react
 # or
-pnpm add @rhino-project/rhino-react
+pnpm add @rhino-dev/rhino-react
 ```
 
 ---
@@ -39,7 +39,7 @@ pnpm add @rhino-project/rhino-react
 ## 🚀 Quick Start
 
 ```tsx
-import { useModelIndex, useModelStore } from '@rhino-project/rhino-react';
+import { useModelIndex, useModelStore } from '@rhino-dev/rhino-react';
 import type { Post } from './types/rhino'; // Auto-generated types
 
 function PostsList() {
@@ -170,7 +170,7 @@ Built with modern technologies:
 - **Type-Safe** - TypeScript generics (`useModelIndex<Post>()`) with auto-generated types
 - **Cached** - Automatic caching and background refetching via React Query
 - **Cross-Platform** - Same hooks on web and React Native
-- **Backend-Agnostic** - Works with Rhino Laravel, Rails, and AdonisJS servers
+- **Backend-Agnostic** - Works with any Rhino server (Laravel, Rails, NestJS, or AdonisJS)
 
 ---
 
@@ -268,7 +268,7 @@ nestedOps.mutate({
 
 - **React:** 18.0.0 or higher (supports React 19)
 - **Node.js:** 18.0.0 or higher
-- **Backend:** Any Rhino server ([Laravel](https://github.com/rhino-project/rhino-laravel), [Rails](https://github.com/rhino-project/rhino-rails), or [AdonisJS](https://github.com/rhino-project/rhino-adonisjs))
+- **Backend:** Any Rhino server ([Laravel](https://github.com/rhino-project/rhino-laravel), [Rails](https://github.com/rhino-project/rhino-rails), [NestJS](https://github.com/rhino-project/rhino-nestjs), or [AdonisJS](https://github.com/rhino-project/rhino-adonisjs))
 
 ---
 
@@ -306,4 +306,4 @@ MIT — see [LICENSE](LICENSE) for details.
 - [Documentation](https://rhino-project.github.io/rhino-docs/docs/getting-started)
 - [Changelog](./CHANGELOG.md)
 - [Issues](https://github.com/rhino-project/rhino-react/issues)
-- [npm Package](https://www.npmjs.com/package/@rhino-project/rhino-react)
+- [npm Package](https://www.npmjs.com/package/@rhino-dev/rhino-react)

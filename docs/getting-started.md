@@ -1,6 +1,6 @@
-# Getting Started with @rhino-project/rhino-react
+# Getting Started with @rhino-dev/rhino-react
 
-This guide will help you install and set up @rhino-project/rhino-react in your React application.
+This guide will help you install and set up @rhino-dev/rhino-react in your React application.
 
 ## Prerequisites
 
@@ -8,27 +8,27 @@ Before you begin, ensure you have:
 
 - **React 18+** or **React 19**
 - **Node.js 18+**
-- A **Laravel backend** with the rhino-laravel package installed
+- A **Rhino backend** (Laravel, Rails, NestJS, or AdonisJS) with the matching Rhino server package installed
 - Basic familiarity with React Hooks and React Query
 
 ## Installation
 
-Install @rhino-project/rhino-react and its peer dependencies:
+Install @rhino-dev/rhino-react and its peer dependencies:
 
 ```bash
-npm install @rhino-project/rhino-react @tanstack/react-query axios
+npm install @rhino-dev/rhino-react @tanstack/react-query axios
 ```
 
 Or with yarn:
 
 ```bash
-yarn add @rhino-project/rhino-react @tanstack/react-query axios
+yarn add @rhino-dev/rhino-react @tanstack/react-query axios
 ```
 
 Or with pnpm:
 
 ```bash
-pnpm add @rhino-project/rhino-react @tanstack/react-query axios
+pnpm add @rhino-dev/rhino-react @tanstack/react-query axios
 ```
 
 ## Project Setup
@@ -85,12 +85,12 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 
 ### 3. Configure API Client (Optional but Recommended)
 
-While @rhino-project/rhino-react comes with a pre-configured Axios instance, you may want to customize it:
+While @rhino-dev/rhino-react comes with a pre-configured Axios instance, you may want to customize it:
 
 **src/lib/api.js**:
 
 ```javascript
-import { api } from '@rhino-project/rhino-react/lib';
+import { api } from '@rhino-dev/rhino-react/lib';
 
 // Customize base URL if not using environment variables
 api.defaults.baseURL = 'http://localhost:8000/api';
@@ -124,7 +124,7 @@ If using the built-in authentication hooks:
 **src/App.jsx**:
 
 ```jsx
-import { AuthProvider } from '@rhino-project/rhino-react';
+import { AuthProvider } from '@rhino-dev/rhino-react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import Login from './pages/Login';
@@ -147,14 +147,14 @@ export default App;
 
 ## Your First Query
 
-Now you're ready to start using @rhino-project/rhino-react hooks!
+Now you're ready to start using @rhino-dev/rhino-react hooks!
 
 ### Fetching a List of Models
 
 **src/pages/Posts.jsx**:
 
 ```jsx
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 
 export default function Posts() {
   const { data: response, isLoading, error } = useModelIndex('posts', {
@@ -208,7 +208,7 @@ export default function Posts() {
 
 ```jsx
 import { useState } from 'react';
-import { useModelStore } from '@rhino-project/rhino-react';
+import { useModelStore } from '@rhino-dev/rhino-react';
 
 export default function CreatePostForm() {
   const createPost = useModelStore('posts');
@@ -276,7 +276,7 @@ export default function CreatePostForm() {
 
 ## Multi-Tenant Setup
 
-@rhino-project/rhino-react has built-in support for multi-tenancy with organization-based routing.
+@rhino-dev/rhino-react has built-in support for multi-tenancy with organization-based routing.
 
 ### URL Structure
 
@@ -299,7 +299,7 @@ Example:
 **src/pages/Dashboard.jsx**:
 
 ```jsx
-import { useOrganization, useOwner, useModelIndex } from '@rhino-project/rhino-react';
+import { useOrganization, useOwner, useModelIndex } from '@rhino-dev/rhino-react';
 
 export default function Dashboard() {
   // Get current organization slug from URL
@@ -352,7 +352,7 @@ The organization slug is:
 
 ```jsx
 import { useState } from 'react';
-import { useAuth } from '@rhino-project/rhino-react';
+import { useAuth } from '@rhino-dev/rhino-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
@@ -419,7 +419,7 @@ export default function Login() {
 **src/components/ProtectedRoute.jsx**:
 
 ```jsx
-import { useAuth } from '@rhino-project/rhino-react';
+import { useAuth } from '@rhino-dev/rhino-react';
 import { Navigate } from 'react-router-dom';
 
 export function ProtectedRoute({ children }) {
@@ -509,7 +509,7 @@ function PostsList() {
 
 ```jsx
 import { useState, useEffect } from 'react';
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 
 function SearchablePosts() {
   const [search, setSearch] = useState('');
@@ -552,7 +552,7 @@ function SearchablePosts() {
 
 ## Next Steps
 
-Now that you have @rhino-project/rhino-react set up, explore these guides:
+Now that you have @rhino-dev/rhino-react set up, explore these guides:
 
 - **[API Reference](./API.md)** - Complete documentation of all hooks
 - **[Pagination Guide](./features/pagination.md)** - Advanced pagination techniques

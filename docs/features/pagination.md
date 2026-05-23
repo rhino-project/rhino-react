@@ -1,6 +1,6 @@
 # Pagination
 
-@rhino-project/rhino-react provides automatic pagination support with metadata extraction from Laravel API responses. Pagination works seamlessly with `useModelIndex` and `useModelTrashed` hooks.
+@rhino-dev/rhino-react provides automatic pagination support with metadata extraction from Rhino backend API responses. Pagination works seamlessly with `useModelIndex` and `useModelTrashed` hooks.
 
 ## Table of Contents
 
@@ -15,7 +15,7 @@
 
 ## How It Works
 
-Laravel sends pagination metadata in response headers:
+Rhino backends send pagination metadata in response headers:
 
 ```
 X-Current-Page: 2
@@ -24,7 +24,7 @@ X-Per-Page: 15
 X-Total: 143
 ```
 
-@rhino-project/rhino-react automatically extracts these headers using the `extractPaginationFromHeaders()` utility and includes them in the query response.
+@rhino-dev/rhino-react automatically extracts these headers using the `extractPaginationFromHeaders()` utility and includes them in the query response.
 
 **API Request:**
 ```
@@ -52,7 +52,7 @@ GET /api/acme-corp/posts?page=2&per_page=15
 
 ```jsx
 import { useState } from 'react';
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 
 function PostsList() {
   const [page, setPage] = useState(1);
@@ -382,12 +382,12 @@ function FilteredPosts() {
 
 ### Infinite Scroll
 
-Use React Query's `useInfiniteQuery` pattern with @rhino-project/rhino-react:
+Use React Query's `useInfiniteQuery` pattern with @rhino-dev/rhino-react:
 
 ```jsx
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { api, extractPaginationFromHeaders } from '@rhino-project/rhino-react/lib';
-import { useOrganization } from '@rhino-project/rhino-react';
+import { api, extractPaginationFromHeaders } from '@rhino-dev/rhino-react/lib';
+import { useOrganization } from '@rhino-dev/rhino-react';
 
 function InfinitePostsList() {
   const organization = useOrganization();
@@ -486,7 +486,7 @@ For Next.js or other SSR frameworks:
 ```jsx
 // pages/posts.jsx (Next.js)
 import { dehydrate, QueryClient, useQuery } from '@tanstack/react-query';
-import { useModelIndex } from '@rhino-project/rhino-react';
+import { useModelIndex } from '@rhino-dev/rhino-react';
 
 export async function getServerSideProps({ query }) {
   const queryClient = new QueryClient();

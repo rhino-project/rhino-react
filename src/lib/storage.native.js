@@ -16,7 +16,7 @@ let initialized = false;
  * Call this once at app startup before rendering (e.g., in a splash screen).
  *
  * @example
- * import { initStorage } from '@rhino-project/rhino-react';
+ * import { initStorage } from '@rhino-dev/rhino-react';
  *
  * async function bootstrap() {
  *   await initStorage();
