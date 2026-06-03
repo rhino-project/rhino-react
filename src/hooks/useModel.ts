@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import { useOrganization } from './useOrganization';
 import { extractPaginationFromHeaders } from '../lib/pagination';
+import { normalizeList, normalizeOne } from '../lib/normalize-response';
 import type { AxiosResponse } from 'axios';
 import type { ModelQueryOptions, QueryResponse, AuditLog, NestedOperation } from '../types';
 
@@ -83,7 +84,7 @@ export function useModelIndex<T = Record<string, any>>(model: string, options: M
       const pagination = extractPaginationFromHeaders(response);
 
       return {
-        data: response.data as T[],
+        data: normalizeList<T>(response.data),
         pagination,
       };
     },
@@ -137,7 +138,7 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
         : `/${orgSlug}/${model}/${id}`;
 
       const response = await api.get(finalUrl);
-      return response.data as T;
+      return normalizeOne<T>(response.data);
     },
     enabled: !!organization && !!id && !!String(organization).trim(),
   });
@@ -277,7 +278,7 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
       const pagination = extractPaginationFromHeaders(response);
 
       return {
-        data: response.data as T[],
+        data: normalizeList<T>(response.data),
         pagination,
       };
     },
@@ -409,7 +410,7 @@ export function useModelAudit(model: string, id: string | number | null | undefi
       const pagination = extractPaginationFromHeaders(response);
 
       return {
-        data: response.data as AuditLog[],
+        data: normalizeList<AuditLog>(response.data),
         pagination,
       };
     },
