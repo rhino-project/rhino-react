@@ -220,6 +220,44 @@ useAcceptInvitation().mutate({ token, route_group: 'driver' });
 
 ---
 
+## 🏢 Multitenancy: path vs. subdomain
+
+The data hooks (`useModelIndex`, `useModelShow`, `useModelStore`, `useModelUpdate`,
+`useModelDelete`, `useModelTrashed`, `useModelRestore`, `useModelForceDelete`,
+`useModelAudit`, `useNestedOperations`) scope requests to the current organization.
+**How** the org is conveyed is controlled by the `tenancy` option:
+
+| `tenancy` | Org carried by | Example URL | When to use |
+|-----------|----------------|-------------|-------------|
+| `'path'` (default) | URL path segment | `/api/{org}/{model}` | Path-prefix multitenancy (e.g. `example.com/{org}/...`) |
+| `'subdomain'` | Request **host** | `/api/{model}` | Domain/subdomain route groups (e.g. `{org}.example.com`) |
+
+The default is `'path'` — byte-for-byte the historical behavior. With
+`tenancy: 'subdomain'`, the org is conveyed by the host (the browser is already on
+`{org}.example.com`), so the hooks build `/api/{model}` with **no org segment**. The
+org is still tracked in context (`useOrganization`) for display/filtering and the hooks
+stay guarded by it (they're disabled / throw when no org is set) — it just isn't
+prepended to the path. This replaces the old workaround of avoiding `setOrganization`
+and hand-rolling a path helper.
+
+```tsx
+import { configureApi, AuthProvider } from '@rhino-dev/rhino-react';
+
+// Option A — configure the API client once at startup
+configureApi({ baseURL: '/api', tenancy: 'subdomain' });
+
+// Option B — pass it to the provider (registers it with the API client)
+<AuthProvider tenancy="subdomain">{children}</AuthProvider>;
+
+// useModelIndex('posts') now hits  GET /api/posts        (not /api/{org}/posts)
+// useModelShow('posts', 1)         GET /api/posts/1
+// useModelStore('posts').mutate()  POST /api/posts
+```
+
+`getTenancy()` returns the active mode (`'path'` | `'subdomain'`) if you need it directly.
+
+---
+
 ## 🏗️ Architecture
 
 Built with modern technologies:

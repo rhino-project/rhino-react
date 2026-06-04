@@ -7,6 +7,7 @@ vi.mock('../lib/axios', () => ({
   default: {
     get: vi.fn(),
   },
+  getTenancy: vi.fn(() => 'path'),
 }));
 
 vi.mock('../hooks/useOrganization', () => ({

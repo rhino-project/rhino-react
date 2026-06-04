@@ -1,10 +1,31 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api from '../lib/axios';
+import api, { getTenancy } from '../lib/axios';
 import { useOrganization } from './useOrganization';
 import { extractPaginationFromHeaders } from '../lib/pagination';
 import { normalizeList, normalizeOne } from '../lib/normalize-response';
 import type { AxiosResponse } from 'axios';
 import type { ModelQueryOptions, QueryResponse, AuditLog, NestedOperation } from '../types';
+
+/**
+ * Build the org/resource base path for a model, honoring the configured tenancy mode.
+ *
+ * - `'path'` (default): `/{org}/{model}` — the org slug is a URL path segment
+ *   (path-prefix multitenancy). Byte-for-byte today's behavior.
+ * - `'subdomain'`: `/{model}` — the org is carried by the request HOST, so no org
+ *   segment is prepended. The org is still validated (must be present) so the hook
+ *   stays enabled/guarded exactly as before, it just isn't placed in the path.
+ *
+ * @param model - The model slug (e.g. 'users').
+ * @param organization - The current org slug from context (required in both modes).
+ * @returns The base resource path, with NO leading-org segment in subdomain mode.
+ */
+function buildResourceBase(model: string, organization: string): string {
+  const orgSlug = String(organization ?? '').trim();
+  if (!orgSlug) {
+    throw new Error('Organization slug is required and must be a non-empty string');
+  }
+  return getTenancy() === 'subdomain' ? `/${model}` : `/${orgSlug}/${model}`;
+}
 
 /**
  * Helper to build query URL with filters, includes, etc.
@@ -14,12 +35,7 @@ function buildQueryUrl(model: string, organization: string, options: ModelQueryO
     throw new Error('Organization slug is required');
   }
 
-  const orgSlug = String(organization).trim();
-  if (!orgSlug) {
-    throw new Error('Organization slug is required and must be a non-empty string');
-  }
-
-  let url = `/${orgSlug}/${model}`;
+  let url = buildResourceBase(model, organization);
   const params = new URLSearchParams();
 
   if (options.filters) {
@@ -132,10 +148,11 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
         params.append('fields', Array.isArray(options.fields) ? options.fields.join(',') : options.fields);
       }
 
+      const base = buildResourceBase(model, orgSlug);
       const queryString = params.toString();
       const finalUrl = queryString
-        ? `/${orgSlug}/${model}/${id}?${queryString}`
-        : `/${orgSlug}/${model}/${id}`;
+        ? `${base}/${id}?${queryString}`
+        : `${base}/${id}`;
 
       const response = await api.get(finalUrl);
       return normalizeOne<T>(response.data);
@@ -161,7 +178,7 @@ export function useModelUpdate<T = Record<string, any>>(model: string) {
 
   return useMutation<T, Error, { id: string | number; data: Partial<T> }>({
     mutationFn: ({ id, data }) => {
-      const url = `/${organization}/${model}/${id}`;
+      const url = `${buildResourceBase(model, organization)}/${id}`;
       return api.put(url, data).then((res: AxiosResponse) => res.data);
     },
     onSuccess: () => {
@@ -188,7 +205,7 @@ export function useModelDelete<T = Record<string, any>>(model: string) {
 
   return useMutation<T, Error, string | number>({
     mutationFn: (id) => {
-      const url = `/${organization}/${model}/${id}`;
+      const url = `${buildResourceBase(model, organization)}/${id}`;
       return api.delete(url).then((res: AxiosResponse) => res.data);
     },
     onSuccess: () => {
@@ -215,7 +232,7 @@ export function useModelStore<T = Record<string, any>>(model: string) {
 
   return useMutation<T, Error, Partial<T>>({
     mutationFn: (data) => {
-      const url = `/${organization}/${model}`;
+      const url = buildResourceBase(model, organization);
       return api.post(url, data).then((res: AxiosResponse) => res.data);
     },
     onSuccess: () => {
@@ -244,7 +261,7 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
     queryKey: ['modelTrashed', model, organization, options],
     queryFn: async () => {
       const orgSlug = String(organization).trim();
-      let url = `/${orgSlug}/${model}/trashed`;
+      let url = `${buildResourceBase(model, orgSlug)}/trashed`;
       const params = new URLSearchParams();
 
       if (options.filters) {
@@ -303,7 +320,7 @@ export function useModelRestore<T = Record<string, any>>(model: string) {
 
   return useMutation<T, Error, string | number>({
     mutationFn: (id) => {
-      const url = `/${organization}/${model}/${id}/restore`;
+      const url = `${buildResourceBase(model, organization)}/${id}/restore`;
       return api.post(url).then((res: AxiosResponse) => res.data);
     },
     onSuccess: () => {
@@ -331,7 +348,7 @@ export function useModelForceDelete<T = Record<string, any>>(model: string) {
 
   return useMutation<T, Error, string | number>({
     mutationFn: (id) => {
-      const url = `/${organization}/${model}/${id}/force-delete`;
+      const url = `${buildResourceBase(model, organization)}/${id}/force-delete`;
       return api.delete(url).then((res: AxiosResponse) => res.data);
     },
     onSuccess: () => {
@@ -363,7 +380,9 @@ export function useNestedOperations() {
 
   return useMutation<any[], Error, { operations: NestedOperation[] }>({
     mutationFn: ({ operations }) => {
-      const url = `/${organization}/nested-operations`;
+      // 'nested-operations' is a fixed endpoint, not a model; treat it like one
+      // so subdomain tenancy drops the org segment (`/nested-operations`).
+      const url = buildResourceBase('nested-operations', organization);
       return api.post(url, { operations }).then((res: AxiosResponse) => res.data);
     },
     onSuccess: (_data, variables) => {
@@ -393,7 +412,7 @@ export function useModelAudit(model: string, id: string | number | null | undefi
     queryKey: ['modelAudit', model, id, organization, options],
     queryFn: async () => {
       const orgSlug = String(organization).trim();
-      let url = `/${orgSlug}/${model}/${id}/audit`;
+      let url = `${buildResourceBase(model, orgSlug)}/${id}/audit`;
       const params = new URLSearchParams();
 
       if (options.page) {

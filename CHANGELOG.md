@@ -5,6 +5,18 @@ All notable changes to @rhino-dev/rhino-react will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Subdomain/host-based org routing for the data hooks.** New `tenancy` option on
+  `configureApi({ tenancy: 'path' | 'subdomain' })` (also accepted on
+  `<AuthProvider tenancy="subdomain">`). Default `'path'` is byte-for-byte the
+  previous behavior (`/api/{org}/{model}`). With `'subdomain'`, the org is carried
+  by the request host (e.g. `{org}.example.com`) and the data hooks build
+  `/api/{model}` with **no** org segment, for every CRUD/trashed/restore/force-delete/
+  audit/nested-operations path. New `getTenancy()` export and `TenancyMode` type.
+
 ## [1.0.0] - 2024-XX-XX
 
 ### Added

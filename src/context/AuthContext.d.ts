@@ -30,5 +30,11 @@ export function AuthProvider(props: {
   children: ReactNode;
   /** Optional route group used to build group-aware auth URLs. */
   routeGroup?: RouteGroup;
+  /**
+   * How the organization is conveyed to the backend by the data hooks.
+   * `'path'` (default) prepends the org slug (`/api/{org}/{model}`); `'subdomain'`
+   * omits it (`/api/{model}`) because the org is carried by the host.
+   */
+  tenancy?: 'path' | 'subdomain';
 }): ReactElement;
 export function useAuth(): AuthContextValue;

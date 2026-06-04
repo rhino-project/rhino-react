@@ -1,5 +1,43 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import api, { configureApi, buildAuthPath, getRouteGroup } from '../lib/axios';
+import api, { configureApi, buildAuthPath, getRouteGroup, getTenancy } from '../lib/axios';
+
+describe('axios – configureApi({ tenancy }) / getTenancy', () => {
+  afterEach(() => {
+    // Restore the default so other suites are unaffected
+    configureApi({ tenancy: 'path' });
+  });
+
+  it('defaults to path-prefix tenancy', () => {
+    expect(getTenancy()).toBe('path');
+  });
+
+  it('switches to subdomain tenancy', () => {
+    configureApi({ tenancy: 'subdomain' });
+    expect(getTenancy()).toBe('subdomain');
+  });
+
+  it('switches back to path tenancy', () => {
+    configureApi({ tenancy: 'subdomain' });
+    expect(getTenancy()).toBe('subdomain');
+    configureApi({ tenancy: 'path' });
+    expect(getTenancy()).toBe('path');
+  });
+
+  it('treats any non-"subdomain" value (incl. null/undefined) as path', () => {
+    configureApi({ tenancy: null });
+    expect(getTenancy()).toBe('path');
+    configureApi({ tenancy: undefined });
+    expect(getTenancy()).toBe('path');
+    configureApi({ tenancy: 'bogus' });
+    expect(getTenancy()).toBe('path');
+  });
+
+  it('leaves tenancy unchanged when the key is absent', () => {
+    configureApi({ tenancy: 'subdomain' });
+    configureApi({ baseURL: '/api' }); // no tenancy key
+    expect(getTenancy()).toBe('subdomain');
+  });
+});
 
 describe('axios – buildAuthPath / getRouteGroup', () => {
   afterEach(() => {

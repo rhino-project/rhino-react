@@ -5,11 +5,16 @@ import { events } from '../lib/events';
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children, routeGroup }) {
+export function AuthProvider({ children, routeGroup, tenancy }) {
   // If the provider is given a route group, register it with the API client so
   // group-aware auth URLs are built consistently everywhere.
   if (routeGroup !== undefined) {
     configureApi({ routeGroup });
+  }
+  // If the provider is given a tenancy mode, register it too so the data hooks
+  // build org-scoped URLs the right way (path-prefix vs. subdomain/host).
+  if (tenancy !== undefined) {
+    configureApi({ tenancy });
   }
 
   const [token, setToken] = useState(() => storage.getItem('token'));

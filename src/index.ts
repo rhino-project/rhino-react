@@ -32,4 +32,5 @@ export type {
   User,
   Role,
   RouteGroup,
+  TenancyMode,
 } from './types';

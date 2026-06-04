@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 vi.mock('../lib/axios', () => ({
   default: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  getTenancy: vi.fn(() => 'path'),
 }));
 vi.mock('../hooks/useOrganization', () => ({ useOrganization: vi.fn() }));
 vi.mock('../lib/pagination', () => ({ extractPaginationFromHeaders: vi.fn() }));

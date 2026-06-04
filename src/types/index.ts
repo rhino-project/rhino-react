@@ -76,6 +76,17 @@ export interface AuditLog {
 export type RouteGroup = string | null;
 
 /**
+ * Multitenancy mode controlling how the data hooks convey the organization to the
+ * backend.
+ *
+ * - `'path'` (default): the org slug is prepended as a URL path segment
+ *   (`/api/{org}/{model}`) — path-prefix multitenancy.
+ * - `'subdomain'`: the org is carried by the request HOST (e.g. `{org}.example.com`),
+ *   so the data hooks build `/api/{model}` with NO org segment.
+ */
+export type TenancyMode = 'path' | 'subdomain';
+
+/**
  * Per-call options for `login` / `logout`.
  */
 export interface LoginOptions {
