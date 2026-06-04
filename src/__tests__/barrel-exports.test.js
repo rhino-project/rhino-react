@@ -61,6 +61,8 @@ describe('barrel exports – src/index.ts', () => {
 
     expect(mod.useRouteGroup).toBeTypeOf('function');
     expect(mod.setRouteGroup).toBeTypeOf('function');
+    expect(mod.useOrganization).toBeTypeOf('function');
+    expect(mod.setOrganization).toBeTypeOf('function');
     expect(mod.useRegister).toBeTypeOf('function');
     expect(mod.usePasswordRecover).toBeTypeOf('function');
     expect(mod.useResetPassword).toBeTypeOf('function');

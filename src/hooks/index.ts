@@ -6,7 +6,7 @@
 export { useAuth } from './useAuth';
 
 // Organization
-export { useOrganization } from './useOrganization';
+export { useOrganization, setOrganization } from './useOrganization';
 export { useOwner } from './useOwner';
 export { useOrganizationExists } from './useOrganizationExists';
 
