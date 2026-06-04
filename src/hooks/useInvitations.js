@@ -1,5 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
+import { storage } from '../lib/storage';
+import { events } from '../lib/events';
 import { useOrganization } from './useOrganization';
 
 /**
@@ -42,9 +44,14 @@ export function useInviteUser() {
   }
   
   return useMutation({
-    mutationFn: ({ email, role_id }) => {
+    mutationFn: ({ email, role_id, route_group }) => {
       const url = `/${organization}/invitations`;
-      return api.post(url, { email, role_id }).then((res) => res.data);
+      // Only include route_group in the payload when provided (back-compat).
+      const payload = { email, role_id };
+      if (route_group !== undefined) {
+        payload.route_group = route_group;
+      }
+      return api.post(url, payload).then((res) => res.data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['invitations', organization] });
@@ -106,9 +113,25 @@ export function useAcceptInvitation() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (token) => {
+    mutationFn: (arg) => {
       const url = '/invitations/accept';
-      return api.post(url, { token }).then((res) => res.data);
+      // Back-compat: a bare string is the token. An object may also carry
+      // `route_group` so the invitee joins the correct group.
+      const { token, route_group } =
+        typeof arg === 'string' ? { token: arg } : (arg || {});
+      const payload = { token };
+      if (route_group !== undefined) {
+        payload.route_group = route_group;
+      }
+      return api.post(url, payload).then((res) => {
+        const data = res.data || {};
+        // If the backend reports the joined group, persist it.
+        if (data.route_group) {
+          storage.setItem('route_group', data.route_group);
+          events.emit('route_group', data.route_group);
+        }
+        return data;
+      });
     },
     onSuccess: () => {
       // Invalidate user-related queries after accepting invitation

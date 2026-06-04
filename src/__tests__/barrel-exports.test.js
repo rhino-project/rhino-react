@@ -55,6 +55,23 @@ describe('barrel exports – src/index.ts', () => {
     expect(mod.useCancelInvitation).toBeTypeOf('function');
     expect(mod.useAcceptInvitation).toBeTypeOf('function');
   });
+
+  it('should export group-aware auth hooks and route group helpers', async () => {
+    const mod = await import('../index');
+
+    expect(mod.useRouteGroup).toBeTypeOf('function');
+    expect(mod.setRouteGroup).toBeTypeOf('function');
+    expect(mod.useRegister).toBeTypeOf('function');
+    expect(mod.usePasswordRecover).toBeTypeOf('function');
+    expect(mod.useResetPassword).toBeTypeOf('function');
+  });
+
+  it('should export buildAuthPath and getRouteGroup from lib', async () => {
+    const mod = await import('../lib/index');
+
+    expect(mod.buildAuthPath).toBeTypeOf('function');
+    expect(mod.getRouteGroup).toBeTypeOf('function');
+  });
 });
 
 describe('barrel exports – hooks/index.ts', () => {

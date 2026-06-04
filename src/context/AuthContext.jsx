@@ -1,11 +1,17 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../lib/axios';
+import api, { buildAuthPath, configureApi } from '../lib/axios';
 import { storage } from '../lib/storage';
 import { events } from '../lib/events';
 
 const AuthContext = createContext(null);
 
-export function AuthProvider({ children }) {
+export function AuthProvider({ children, routeGroup }) {
+  // If the provider is given a route group, register it with the API client so
+  // group-aware auth URLs are built consistently everywhere.
+  if (routeGroup !== undefined) {
+    configureApi({ routeGroup });
+  }
+
   const [token, setToken] = useState(() => storage.getItem('token'));
   const [isAuthenticated, setIsAuthenticated] = useState(!!storage.getItem('token'));
 
@@ -19,10 +25,12 @@ export function AuthProvider({ children }) {
     }
   }, [token]);
 
-  const login = async (email, password) => {
+  const login = async (email, password, options = {}) => {
+    // Per-call routeGroup override; falls back to the provider/configured group.
+    const callRouteGroup = 'routeGroup' in options ? options.routeGroup : routeGroup;
     try {
-      const response = await api.post('/auth/login', { email, password });
-      const { token: newToken, user, organization, organization_slug, organizations } = response.data || {};
+      const response = await api.post(buildAuthPath('login', callRouteGroup), { email, password });
+      const { token: newToken, user, organization, organization_slug, organizations, route_group } = response.data || {};
       setToken(newToken);
 
       // Store user data if provided in login response
@@ -55,11 +63,20 @@ export function AuthProvider({ children }) {
         storage.setItem('organization_slug', firstOrganizationSlug);
       }
 
+      // Persist the route group used for this login. Prefer the value the
+      // backend echoes back (`route_group`), otherwise the one we logged in with.
+      const resolvedRouteGroup = route_group != null ? route_group : (callRouteGroup ?? null);
+      if (resolvedRouteGroup) {
+        storage.setItem('route_group', resolvedRouteGroup);
+        events.emit('route_group', resolvedRouteGroup);
+      }
+
       return {
         success: true,
         user: user || null,
         organization: firstOrganizationSlug ? { slug: firstOrganizationSlug } : null,
-        organization_slug: firstOrganizationSlug
+        organization_slug: firstOrganizationSlug,
+        route_group: resolvedRouteGroup,
       };
     } catch (error) {
       return {
@@ -69,18 +86,21 @@ export function AuthProvider({ children }) {
     }
   };
 
-  const logout = async () => {
+  const logout = async (options = {}) => {
+    const callRouteGroup = 'routeGroup' in options ? options.routeGroup : routeGroup;
     try {
-      await api.post('/auth/logout');
+      await api.post(buildAuthPath('logout', callRouteGroup));
     } catch (error) {
       // Continue with logout even if API call fails
       console.error('Logout error:', error);
     } finally {
       setToken(null);
-      // Clear user data and organization on logout
+      // Clear user data, organization and route group on logout
       storage.removeItem('user');
       storage.removeItem('last_organization');
       storage.removeItem('organization_slug');
+      storage.removeItem('route_group');
+      events.emit('route_group', null);
     }
   };
 
@@ -96,12 +116,23 @@ export function AuthProvider({ children }) {
     events.emit('organization_slug', slug);
   };
 
+  const setRouteGroup = (group) => {
+    if (group) {
+      storage.setItem('route_group', group);
+    } else {
+      storage.removeItem('route_group');
+    }
+    // Notify other components about the route group change
+    events.emit('route_group', group);
+  };
+
   const value = {
     token,
     isAuthenticated,
     login,
     logout,
     setOrganization,
+    setRouteGroup,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

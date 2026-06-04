@@ -10,6 +10,12 @@ export { useOrganization } from './useOrganization';
 export { useOwner } from './useOwner';
 export { useOrganizationExists } from './useOrganizationExists';
 
+// Route Group (group-aware auth)
+export { useRouteGroup, setRouteGroup } from './useRouteGroup';
+
+// Group-aware auth actions
+export { useRegister, usePasswordRecover, useResetPassword } from './useAuthActions';
+
 // Model CRUD Operations
 export {
   useModelIndex,

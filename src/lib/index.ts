@@ -3,7 +3,7 @@
  */
 
 // API Client
-export { default as api, configureApi } from './axios';
+export { default as api, configureApi, buildAuthPath, getRouteGroup } from './axios';
 
 // Storage & Events adapters
 export { storage, createWebStorage, initStorage } from './storage';

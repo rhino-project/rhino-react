@@ -10,6 +10,7 @@
 ## ✨ Features
 
 - 🔐 **Authentication** - Built-in auth hooks with token-based authentication
+- 🚪 **Group-aware auth** - Optional route groups for per-group auth endpoints, membership (403) handling, register & password recovery/reset hooks
 - 🏢 **Multi-tenancy** - Organization-based routing and data scoping
 - 📊 **Complete CRUD** - Index, show, create, update, delete operations
 - 🗑️ **Soft Deletes** - Trash, restore, and force delete support
@@ -129,21 +130,25 @@ For full documentation, guides, and API reference visit:
 
 | Hook | Purpose |
 |------|---------|
-| `useAuth` | Authentication state and methods |
+| `useAuth` | Authentication state and methods (`login`/`logout` accept an optional `{ routeGroup }`) |
 | `useOrganization` | Current organization slug |
 | `useOwner` | Organization data |
 | `useOrganizationExists` | Validate organization |
 | `useUserRole` | Current user role and `hasRole()` helper |
+| `useRouteGroup` | Current route group (group-aware auth), with cross-tab/native sync |
+| `useRegister` | Register a user (typically via invitation token), respects the route group |
+| `usePasswordRecover` | Request a password recovery email, respects the route group |
+| `useResetPassword` | Reset a password with a reset token, respects the route group |
 
 ### Invitations
 
 | Hook | Purpose |
 |------|---------|
 | `useInvitations` | List invitations |
-| `useInviteUser` | Create invitation |
+| `useInviteUser` | Create invitation (optional `route_group` in payload) |
 | `useResendInvitation` | Resend invitation |
 | `useCancelInvitation` | Cancel invitation |
-| `useAcceptInvitation` | Accept invitation |
+| `useAcceptInvitation` | Accept invitation (accepts a token string or `{ token, route_group }`) |
 
 ### Utilities
 
@@ -151,6 +156,67 @@ For full documentation, guides, and API reference visit:
 |------|---------|
 | `useToast` | Toast notifications with multi-instance sync |
 | `useModelQuery` | Deprecated alias for `useModelIndex` |
+
+---
+
+## 🚪 Group-Aware Auth
+
+Rhino backends can register the auth route set per **route group**. A prefix-based
+group exposes its auth under `/api/{group}/auth/*`; a domain-based group serves the
+plain `/api/auth/*` on its own host (so domain-based groups need **no** client change).
+
+This support is fully opt-in and backward compatible — with no `routeGroup`
+configured, every auth/invitation URL is byte-for-byte what it was before.
+
+```tsx
+import { configureApi, AuthProvider } from '@rhino-dev/rhino-react';
+
+// Option A — configure the API client once at startup
+configureApi({
+  baseURL: '/api',
+  routeGroup: 'driver',            // auth URLs become /driver/auth/*
+  onForbidden: (error) => {        // 403 = authenticated but not a group member
+    // The token is NOT cleared on 403 (unlike 401). Surface membership denial:
+    console.warn(error.response?.data?.message);
+  },
+});
+
+// Option B — pass it to the provider (registers it with the API client)
+<AuthProvider routeGroup="driver">{children}</AuthProvider>;
+```
+
+`login`/`logout` accept a per-call override, and the resolved group is persisted
+under the `route_group` storage key and exposed via `useRouteGroup()`:
+
+```tsx
+const { login, logout } = useAuth();
+await login(email, password, { routeGroup: 'admin' }); // POST /admin/auth/login
+
+const routeGroup = useRouteGroup(); // 'admin' after a group-aware login
+
+await logout(); // clears the persisted route group
+```
+
+The group-aware action hooks respect the configured group (with an optional
+per-call `routeGroup`):
+
+```tsx
+const register = useRegister();
+await register.mutateAsync({ token, name, email, password, password_confirmation });
+
+const recover = usePasswordRecover();
+await recover.mutateAsync({ email });
+
+const reset = useResetPassword();
+await reset.mutateAsync({ token, email, password, password_confirmation });
+```
+
+Invitations can carry the group too:
+
+```tsx
+useInviteUser().mutate({ email, role_id, route_group: 'driver' });
+useAcceptInvitation().mutate({ token, route_group: 'driver' });
+```
 
 ---
 

@@ -8,6 +8,9 @@ vi.mock('../lib/axios', () => ({
   default: {
     post: vi.fn(),
   },
+  configureApi: vi.fn(),
+  buildAuthPath: (action, routeGroup) =>
+    routeGroup ? `/${routeGroup}/auth/${action}` : `/auth/${action}`,
 }));
 
 import api from '../lib/axios';

@@ -24,10 +24,12 @@ export type {
   NestedOperation,
   AuditLog,
   LoginResult,
+  LoginOptions,
   QueryResponse,
   InvitationStatus,
   Invitation,
   Organization,
   User,
   Role,
+  RouteGroup,
 } from './types';

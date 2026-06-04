@@ -70,6 +70,20 @@ export interface AuditLog {
 }
 
 /**
+ * A route group identifier (e.g. 'driver', 'admin'). `null` means the default
+ * unprefixed `/auth/*` group.
+ */
+export type RouteGroup = string | null;
+
+/**
+ * Per-call options for `login` / `logout`.
+ */
+export interface LoginOptions {
+  /** Route group override for this call (defaults to the configured/provider group). */
+  routeGroup?: RouteGroup;
+}
+
+/**
  * Login result from authentication
  */
 export interface LoginResult {
@@ -77,6 +91,8 @@ export interface LoginResult {
   user?: any;
   organization?: { slug: string };
   organization_slug?: string;
+  /** The route group the user logged into, if any (group-aware auth). */
+  route_group?: RouteGroup;
   error?: string;
 }
 
@@ -109,6 +125,8 @@ export interface Invitation {
     id: number;
     name: string;
   };
+  /** The route group the invitee will join (group-aware invitations). */
+  route_group?: RouteGroup;
   expires_at: string;
   created_at: string;
   updated_at: string;
