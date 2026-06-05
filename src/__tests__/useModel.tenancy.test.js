@@ -247,16 +247,43 @@ describe("tenancy: subdomain — org segment is omitted (org carried by host)", 
     expect(api.get).toHaveBeenCalledWith('/users/42/audit');
   });
 
-  it('still requires an org in context (mutations throw when org is null)', () => {
+  it('does NOT require an org in context (mutations work when org is null)', async () => {
     useOrganization.mockReturnValue(null);
-    expect(() => {
-      renderHook(() => useModelStore('users'), { wrapper: createWrapper() });
-    }).toThrow('Organization slug is required');
+    api.post.mockResolvedValue({ data: { id: 1 } });
+    const { result } = renderHook(() => useModelStore('users'), { wrapper: createWrapper() });
+    await act(async () => { await result.current.mutateAsync({ name: 'John' }); });
+    expect(api.post).toHaveBeenCalledWith('/users', { name: 'John' });
   });
 
+  it('queries are enabled and hit /{model} when org is null', async () => {
+    useOrganization.mockReturnValue(null);
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(() => useModelIndex('users'), { wrapper: createWrapper() });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(api.get).toHaveBeenCalledWith('/users');
+  });
+
+  it('useModelShow is enabled and hits /{model}/{id} when org is null', async () => {
+    useOrganization.mockReturnValue(null);
+    api.get.mockResolvedValue({ data: { id: 7 } });
+    renderHook(() => useModelShow('users', 7), { wrapper: createWrapper() });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(api.get).toHaveBeenCalledWith('/users/7');
+  });
+});
+
+// ─── Path mode regression — still gated/disabled without an org ─────────────────
+describe('tenancy: path (default) — still requires an org', () => {
   it('queries stay disabled when org is null', () => {
     useOrganization.mockReturnValue(null);
     renderHook(() => useModelIndex('users'), { wrapper: createWrapper() });
     expect(api.get).not.toHaveBeenCalled();
+  });
+
+  it('mutations throw when org is null', () => {
+    useOrganization.mockReturnValue(null);
+    expect(() => {
+      renderHook(() => useModelStore('users'), { wrapper: createWrapper() });
+    }).toThrow('Organization slug is required');
   });
 });

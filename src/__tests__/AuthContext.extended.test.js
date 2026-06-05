@@ -228,6 +228,67 @@ describe('AuthContext – login', () => {
     expect(loginResult.error).toBe('Login failed');
   });
 
+  it('should expose HTTP status 403 on a membership-denied failure', async () => {
+    api.post.mockRejectedValue({
+      response: { status: 403, data: { message: 'Membership denied' } },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let loginResult;
+    await act(async () => {
+      loginResult = await result.current.login('member@test.com', 'pw');
+    });
+
+    expect(loginResult.success).toBe(false);
+    expect(loginResult.status).toBe(403);
+    expect(loginResult.error).toBe('Membership denied');
+  });
+
+  it('should expose HTTP status 401 on a bad-credentials failure', async () => {
+    api.post.mockRejectedValue({
+      response: { status: 401, data: { message: 'Invalid credentials' } },
+    });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let loginResult;
+    await act(async () => {
+      loginResult = await result.current.login('wrong@test.com', 'bad');
+    });
+
+    expect(loginResult.success).toBe(false);
+    expect(loginResult.status).toBe(401);
+  });
+
+  it('should leave status undefined when the error has no response', async () => {
+    api.post.mockRejectedValue(new Error('Network Error'));
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let loginResult;
+    await act(async () => {
+      loginResult = await result.current.login('a@b.com', 'p');
+    });
+
+    expect(loginResult.success).toBe(false);
+    expect(loginResult.status).toBeUndefined();
+  });
+
+  it('should expose HTTP status on a successful login', async () => {
+    api.post.mockResolvedValue({ status: 200, data: { token: 'tok' } });
+
+    const { result } = renderHook(() => useAuth(), { wrapper });
+
+    let loginResult;
+    await act(async () => {
+      loginResult = await result.current.login('a@b.com', 'p');
+    });
+
+    expect(loginResult.success).toBe(true);
+    expect(loginResult.status).toBe(200);
+  });
+
   it('should handle empty response data gracefully', async () => {
     api.post.mockResolvedValue({ data: null });
 

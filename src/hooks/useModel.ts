@@ -12,26 +12,42 @@ import type { ModelQueryOptions, QueryResponse, AuditLog, NestedOperation } from
  * - `'path'` (default): `/{org}/{model}` — the org slug is a URL path segment
  *   (path-prefix multitenancy). Byte-for-byte today's behavior.
  * - `'subdomain'`: `/{model}` — the org is carried by the request HOST, so no org
- *   segment is prepended. The org is still validated (must be present) so the hook
- *   stays enabled/guarded exactly as before, it just isn't placed in the path.
+ *   segment is prepended. No org is required in context: the hook works with NO org
+ *   set (a subdomain-mode app needs no placeholder org slug).
  *
  * @param model - The model slug (e.g. 'users').
- * @param organization - The current org slug from context (required in both modes).
+ * @param organization - The current org slug from context (required only in `'path'` mode).
  * @returns The base resource path, with NO leading-org segment in subdomain mode.
  */
-function buildResourceBase(model: string, organization: string): string {
+function buildResourceBase(model: string, organization: string | null | undefined): string {
+  // Subdomain mode carries the org via the host, so no org segment (and no org
+  // requirement). Return `/{model}` regardless of whether an org is in context.
+  if (getTenancy() === 'subdomain') {
+    return `/${model}`;
+  }
   const orgSlug = String(organization ?? '').trim();
   if (!orgSlug) {
     throw new Error('Organization slug is required and must be a non-empty string');
   }
-  return getTenancy() === 'subdomain' ? `/${model}` : `/${orgSlug}/${model}`;
+  return `/${orgSlug}/${model}`;
+}
+
+/**
+ * Whether the data hooks may run without an organization in context.
+ *
+ * In `'subdomain'` mode the org is carried by the request host, so hooks/mutations
+ * do NOT require an org. In the default `'path'` mode the org is a URL segment and
+ * is still required.
+ */
+function orgNotRequired(): boolean {
+  return getTenancy() === 'subdomain';
 }
 
 /**
  * Helper to build query URL with filters, includes, etc.
  */
 function buildQueryUrl(model: string, organization: string, options: ModelQueryOptions = {}): string {
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required');
   }
 
@@ -104,7 +120,7 @@ export function useModelIndex<T = Record<string, any>>(model: string, options: M
         pagination,
       };
     },
-    enabled: !!organization,
+    enabled: !!organization || orgNotRequired(),
   });
 }
 
@@ -127,8 +143,8 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
   return useQuery<T>({
     queryKey: ['modelShow', model, id, organization, options],
     queryFn: async () => {
-      const orgSlug = String(organization).trim();
-      if (!orgSlug) {
+      const orgSlug = String(organization ?? '').trim();
+      if (!orgSlug && !orgNotRequired()) {
         throw new Error('Organization slug is required. Please ensure you are logged in and have selected an organization.');
       }
 
@@ -157,7 +173,7 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
       const response = await api.get(finalUrl);
       return normalizeOne<T>(response.data);
     },
-    enabled: !!organization && !!id && !!String(organization).trim(),
+    enabled: (!!organization && !!String(organization).trim() || orgNotRequired()) && !!id,
   });
 }
 
@@ -172,7 +188,7 @@ export function useModelUpdate<T = Record<string, any>>(model: string) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
@@ -199,7 +215,7 @@ export function useModelDelete<T = Record<string, any>>(model: string) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
@@ -226,7 +242,7 @@ export function useModelStore<T = Record<string, any>>(model: string) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
@@ -260,7 +276,7 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
   return useQuery<QueryResponse<T>>({
     queryKey: ['modelTrashed', model, organization, options],
     queryFn: async () => {
-      const orgSlug = String(organization).trim();
+      const orgSlug = String(organization ?? '').trim();
       let url = `${buildResourceBase(model, orgSlug)}/trashed`;
       const params = new URLSearchParams();
 
@@ -299,7 +315,7 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
         pagination,
       };
     },
-    enabled: !!organization,
+    enabled: !!organization || orgNotRequired(),
   });
 }
 
@@ -314,7 +330,7 @@ export function useModelRestore<T = Record<string, any>>(model: string) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
@@ -342,7 +358,7 @@ export function useModelForceDelete<T = Record<string, any>>(model: string) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
@@ -374,7 +390,7 @@ export function useNestedOperations() {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
-  if (!organization) {
+  if (!organization && !orgNotRequired()) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
@@ -411,7 +427,7 @@ export function useModelAudit(model: string, id: string | number | null | undefi
   return useQuery<QueryResponse<AuditLog>>({
     queryKey: ['modelAudit', model, id, organization, options],
     queryFn: async () => {
-      const orgSlug = String(organization).trim();
+      const orgSlug = String(organization ?? '').trim();
       let url = `${buildResourceBase(model, orgSlug)}/${id}/audit`;
       const params = new URLSearchParams();
 
@@ -433,6 +449,6 @@ export function useModelAudit(model: string, id: string | number | null | undefi
         pagination,
       };
     },
-    enabled: !!organization && !!id,
+    enabled: (!!organization || orgNotRequired()) && !!id,
   });
 }

@@ -35,6 +35,7 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
     const callRouteGroup = 'routeGroup' in options ? options.routeGroup : routeGroup;
     try {
       const response = await api.post(buildAuthPath('login', callRouteGroup), { email, password });
+      const responseStatus = response?.status;
       const { token: newToken, user, organization, organization_slug, organizations, route_group } = response.data || {};
       setToken(newToken);
 
@@ -82,11 +83,15 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
         organization: firstOrganizationSlug ? { slug: firstOrganizationSlug } : null,
         organization_slug: firstOrganizationSlug,
         route_group: resolvedRouteGroup,
+        status: responseStatus,
       };
     } catch (error) {
       return {
         success: false,
         error: error.response?.data?.message || 'Login failed',
+        // Surface the HTTP status so callers can distinguish e.g. 401 (bad
+        // credentials) from 403 (group membership denied).
+        status: error.response?.status,
       };
     }
   };

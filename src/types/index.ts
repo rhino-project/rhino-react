@@ -105,6 +105,11 @@ export interface LoginResult {
   /** The route group the user logged into, if any (group-aware auth). */
   route_group?: RouteGroup;
   error?: string;
+  /**
+   * The HTTP status of the login response. On failure this lets callers
+   * distinguish e.g. 401 (bad credentials) from 403 (group membership denied).
+   */
+  status?: number;
 }
 
 /**

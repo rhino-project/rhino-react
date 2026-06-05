@@ -10,6 +10,10 @@ export default defineConfig({
       insertTypesEntry: true,
       include: ['src/**/*.ts', 'src/**/*.tsx'],
       exclude: ['src/**/*.test.ts', 'src/**/*.test.tsx', 'src/**/*.native.*', 'node_modules'],
+      // Emit the hand-authored `.d.ts` files (e.g. `src/lib/axios.d.ts`) into
+      // `dist` so consumers importing names re-exported from `.js` modules
+      // (`api`, `configureApi`, `getTenancy`, ...) resolve to real types.
+      copyDtsFiles: true,
     }),
   ],
   build: {
