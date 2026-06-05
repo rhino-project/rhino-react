@@ -1,6 +1,6 @@
 {
   "name": "@rhino-dev/rhino-react",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "Comprehensive React library for Rhino backends with full CRUD, pagination, soft deletes, and multi-tenant support. Works on web and React Native.",
   "type": "module",
   "publishConfig": {
