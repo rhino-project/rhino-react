@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { storage } from './storage';
+import { storage, setStorageAdapter } from './storage';
 
 const api = axios.create({
   baseURL: '/api',
@@ -74,6 +74,10 @@ export function buildAuthPath(action, routeGroup) {
  *   Defaults to redirecting to '/' on web. React Native apps should pass their own navigation logic.
  * @param {Function} [options.onForbidden] - Callback when a 403 response is received (e.g. the
  *   user is authenticated but not a member of the route group). The token is NOT cleared.
+ * @param {{getItem,setItem,removeItem}} [options.storage] - Custom storage adapter for the
+ *   token/user/org values. Defaults to the platform store (localStorage on web, AsyncStorage
+ *   on React Native). Desktop (Electron) apps pass a safeStorage-backed adapter here, e.g.
+ *   `configureApi({ storage: createElectronStorage() })`.
  *
  * @example
  * // Web
@@ -95,6 +99,11 @@ export function buildAuthPath(action, routeGroup) {
 export function configureApi(options = {}) {
   if (options.baseURL) {
     api.defaults.baseURL = options.baseURL;
+  }
+  if (options.storage) {
+    // Plug in a custom storage adapter (e.g. Electron safeStorage-backed store,
+    // or a custom token vault). Token reads/writes throughout the lib route here.
+    setStorageAdapter(options.storage);
   }
   if ('onUnauthorized' in options) {
     onUnauthorized = options.onUnauthorized || null;

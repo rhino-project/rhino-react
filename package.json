@@ -16,6 +16,21 @@
       "react-native": "./src/index.ts",
       "import": "./dist/index.js",
       "default": "./dist/index.js"
+    },
+    "./electron": {
+      "types": "./dist/electron/main.d.ts",
+      "import": "./dist/electron/main.js",
+      "default": "./dist/electron/main.js"
+    },
+    "./electron/preload": {
+      "types": "./dist/electron/preload.d.ts",
+      "import": "./dist/electron/preload.js",
+      "default": "./dist/electron/preload.js"
+    },
+    "./electron/renderer": {
+      "types": "./dist/electron/renderer.d.ts",
+      "import": "./dist/electron/renderer.js",
+      "default": "./dist/electron/renderer.js"
     }
   },
   "files": [

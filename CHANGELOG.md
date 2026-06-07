@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Electron desktop support (no separate package).** New subpath modules:
+  `@rhino-dev/rhino-react/electron` (`registerRhinoSecureStorage`, `createSecureStore`
+  — `safeStorage`-backed encrypted store + IPC handlers for the main process),
+  `@rhino-dev/rhino-react/electron/preload` (`exposeRhinoStorage`), and
+  `@rhino-dev/rhino-react/electron/renderer` (`createElectronStorage`,
+  `initElectronStorage` — a synchronous, IPC-backed adapter). Electron primitives
+  are injected, so the library has no `electron` dependency.
+- **Injectable storage.** `configureApi({ storage })` now accepts any
+  `{ getItem, setItem, removeItem }` adapter, and `setStorageAdapter()` /
+  `getStorageAdapter()` are exported. The default remains localStorage (web) /
+  AsyncStorage (React Native) — fully backward compatible.
+
 - **Subdomain/host-based org routing for the data hooks.** New `tenancy` option on
   `configureApi({ tenancy: 'path' | 'subdomain' })` (also accepted on
   `<AuthProvider tenancy="subdomain">`). Default `'path'` is byte-for-byte the

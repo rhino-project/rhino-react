@@ -6,7 +6,14 @@
 export { default as api, configureApi, buildAuthPath, getRouteGroup, getTenancy } from './axios';
 
 // Storage & Events adapters
-export { storage, createWebStorage, initStorage } from './storage';
+export {
+  storage,
+  createWebStorage,
+  initStorage,
+  setStorageAdapter,
+  getStorageAdapter,
+} from './storage';
+export type { StorageAdapter } from './storage';
 export { events, createWebEvents } from './events';
 
 // Utilities

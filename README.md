@@ -258,6 +258,34 @@ configureApi({ baseURL: '/api', tenancy: 'subdomain' });
 
 ---
 
+## 🖥️ Desktop (Electron)
+
+The same hooks run in an **Electron** renderer (it's Chromium) — no separate
+package needed. For desktop you typically want the auth token stored **encrypted
+at rest** via Electron `safeStorage` (the OS keychain) in the main process,
+instead of renderer `localStorage`. Three subpath modules provide that:
+
+```ts
+// main process — encrypted store + IPC handlers
+import { registerRhinoSecureStorage } from '@rhino-dev/rhino-react/electron';
+registerRhinoSecureStorage({ ipcMain, safeStorage, app, fs, path });
+
+// preload — exposes window.rhino.storage
+import { exposeRhinoStorage } from '@rhino-dev/rhino-react/electron/preload';
+exposeRhinoStorage({ contextBridge, ipcRenderer });
+
+// renderer — hydrate once, then use as the storage adapter
+import { createElectronStorage, initElectronStorage } from '@rhino-dev/rhino-react/electron/renderer';
+await initElectronStorage();
+configureApi({ baseURL: '/api', storage: createElectronStorage() });
+```
+
+`configureApi({ storage })` accepts any `{ getItem, setItem, removeItem }` adapter,
+so you can also plug in a custom vault (or call `setStorageAdapter()` directly).
+See the **Desktop (Electron)** docs page and the `client-desktop` example.
+
+---
+
 ## 🏗️ Architecture
 
 Built with modern technologies:

@@ -58,8 +58,38 @@ export function createNativeStorage() {
   };
 }
 
-/** Default storage instance for React Native */
-export const storage = createNativeStorage();
+// The active adapter. Defaults to AsyncStorage but can be swapped at runtime
+// via setStorageAdapter() (e.g. a custom secure store). The `storage` export
+// delegates to whatever is active so swapping is reflected everywhere.
+let activeAdapter = createNativeStorage();
+
+/**
+ * Swap the active storage adapter at runtime. Pass `null`/`undefined` to reset
+ * to the platform default (AsyncStorage on React Native).
+ *
+ * @param {{ getItem: (key: string) => string|null, setItem: (key: string, value: string) => void, removeItem: (key: string) => void }|null} [adapter]
+ */
+export function setStorageAdapter(adapter) {
+  activeAdapter = adapter || createNativeStorage();
+}
+
+/**
+ * Get the currently active storage adapter (advanced/testing).
+ * @returns {{ getItem: (key: string) => string|null, setItem: (key: string, value: string) => void, removeItem: (key: string) => void }}
+ */
+export function getStorageAdapter() {
+  return activeAdapter;
+}
+
+/**
+ * Default storage instance. A stable proxy that always delegates to the active
+ * adapter, so a later `setStorageAdapter()` is honored everywhere.
+ */
+export const storage = {
+  getItem: (key) => activeAdapter.getItem(key),
+  setItem: (key, value) => activeAdapter.setItem(key, value),
+  removeItem: (key) => activeAdapter.removeItem(key),
+};
 
 // Re-export createNativeStorage as createWebStorage for import compatibility
 export { createNativeStorage as createWebStorage };

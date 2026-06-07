@@ -1,4 +1,5 @@
 import { AxiosInstance, AxiosError } from 'axios';
+import type { StorageAdapter } from './storage';
 
 /** How the organization is conveyed to the backend by the data hooks. */
 export type TenancyMode = 'path' | 'subdomain';
@@ -16,6 +17,12 @@ export interface ConfigureApiOptions {
   onUnauthorized?: () => void;
   /** Called on a 403 response (membership denied). The token is NOT cleared. */
   onForbidden?: (error: AxiosError) => void;
+  /**
+   * Custom storage adapter for the token/user/org values. Defaults to the platform
+   * store (localStorage on web, AsyncStorage on React Native). Desktop (Electron) apps
+   * pass a safeStorage-backed adapter here (see `createElectronStorage`).
+   */
+  storage?: StorageAdapter;
 }
 
 export function configureApi(options?: ConfigureApiOptions): void;

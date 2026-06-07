@@ -18,10 +18,14 @@ export default defineConfig({
   ],
   build: {
     lib: {
-      entry: resolve(__dirname, 'src/index.ts'),
-      name: '@rhino-dev/rhino-react',
+      entry: {
+        index: resolve(__dirname, 'src/index.ts'),
+        // Electron subpath modules (@rhino-dev/rhino-react/electron[/preload|/renderer]).
+        'electron/main': resolve(__dirname, 'src/electron/main.js'),
+        'electron/preload': resolve(__dirname, 'src/electron/preload.js'),
+        'electron/renderer': resolve(__dirname, 'src/electron/renderer.js'),
+      },
       formats: ['es'],
-      fileName: () => 'index.js',
     },
     rollupOptions: {
       external: (id) => {
@@ -43,6 +47,8 @@ export default defineConfig({
         );
       },
       output: {
+        // Preserve entry names so we get dist/index.js, dist/electron/main.js, etc.
+        entryFileNames: '[name].js',
         globals: {
           react: 'React',
           'react-dom': 'ReactDOM',
