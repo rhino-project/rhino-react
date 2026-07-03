@@ -287,6 +287,7 @@ interface ModelQueryOptions {
   page?: number;
   perPage?: number;
   per_page?: number;
+  scope?: string;
 }
 
 interface QueryResponse<T> {
@@ -311,6 +312,7 @@ interface PaginationMeta {
 - `options.search` - Full-text search query
 - `options.page` - Page number (default: 1)
 - `options.perPage` / `options.per_page` - Items per page (default: 15)
+- `options.scope` - Server-defined named scope to apply, serialized as `?scope=<name>` (e.g., `'availableForDrivers'`). Only scopes whitelisted on the model server-side are accepted; an unknown scope returns 403. Composes with filters/sort/pagination. Not applied to `useModelShow`.
 
 **Returns:**
 - `data.data` - Array of model objects

@@ -76,6 +76,10 @@ function buildQueryUrl(model: string, organization: string, options: ModelQueryO
     params.append('search', options.search);
   }
 
+  if (options.scope) {
+    params.append('scope', options.scope);
+  }
+
   if (options.page) {
     params.append('page', String(options.page));
   }
@@ -136,6 +140,9 @@ export function useModelIndex<T = Record<string, any>>(model: string, options: M
  *   includes: ['author', 'comments'],
  *   fields: ['id', 'title', 'content']
  * })
+ *
+ * Note: `scope` is intentionally NOT applied to show — the backends do not
+ * scope single-resource reads, so it is omitted here even if passed in options.
  */
 export function useModelShow<T = Record<string, any>>(model: string, id: string | number | null | undefined, options: ModelQueryOptions = {}) {
   const organization = useOrganization();
@@ -296,6 +303,9 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
       }
       if (options.search) {
         params.append('search', options.search);
+      }
+      if (options.scope) {
+        params.append('scope', options.scope);
       }
       if (options.page) {
         params.append('page', String(options.page));

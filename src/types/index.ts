@@ -32,6 +32,12 @@ export interface ModelQueryOptions {
   perPage?: number;
   /** Items per page (alternative name) */
   per_page?: number;
+  /**
+   * Server-defined named scope to apply (e.g. 'availableForDrivers').
+   * Only scopes whitelisted on the model server-side are accepted; an
+   * unknown scope returns 403. Serialized as ?scope=<name>.
+   */
+  scope?: string;
 }
 
 /**

@@ -338,6 +338,21 @@ const { data: response } = useModelIndex('posts', {
 });
 ```
 
+### Named Scopes
+
+Apply a server-defined named scope with the `scope` option (serialized as
+`?scope=<name>`). It composes with filters, sort, and pagination, and works with
+`useModelTrashed` too. Unknown/unauthorized scopes return 403. `scope` is not
+applied to `useModelShow`.
+
+```tsx
+const { data: response } = useModelIndex('routes', {
+  scope: 'availableForDrivers',
+  filters: { status: 'open' },
+  sort: '-created_at'
+});
+```
+
 ### Relationships
 
 Eager load related data with includes:

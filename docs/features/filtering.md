@@ -822,6 +822,39 @@ const resetFilters = () => {
 
 ---
 
+## Named Scopes
+
+Pass a server-defined named scope with the `scope` option. It is serialized as
+`?scope=<name>` and applied server-side, on top of any filters/sort/pagination.
+
+```jsx
+// Apply a named scope defined + whitelisted on the server for the model
+const { data: response } = useModelIndex('routes', { scope: 'availableForDrivers' });
+```
+
+Scopes compose with everything else:
+
+```jsx
+const { data: response } = useModelIndex('routes', {
+  scope: 'active',
+  filters: { status: 'open' },
+  sort: '-created_at',
+  page: 1,
+  perPage: 20,
+});
+// GET /:org/routes?filter[status]=open&sort=-created_at&scope=active&page=1&per_page=20
+```
+
+Notes:
+
+- The client treats `scope` as an opaque string. All whitelisting/authorization
+  is server-side — an **unknown or unauthorized scope returns 403**.
+- `scope` also composes with `useModelTrashed`.
+- `scope` is intentionally **not** applied to `useModelShow` (single-resource
+  reads are not scoped by the backends).
+
+---
+
 ## Related Documentation
 
 - [API Reference - useModelIndex](../API.md#usemodelindex)
