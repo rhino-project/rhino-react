@@ -1,6 +1,6 @@
 {
   "name": "@rhino-dev/rhino-react",
-  "version": "4.3.1",
+  "version": "4.3.2",
   "description": "Comprehensive React library for Rhino backends with full CRUD, pagination, soft deletes, and multi-tenant support. Works on web and React Native.",
   "type": "module",
   "publishConfig": {
@@ -80,6 +80,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "cogent-js": "^2.0.0",
     "tailwind-merge": "^3.4.0"
   },
   "peerDependencies": {
@@ -104,7 +105,6 @@
     "@vitejs/plugin-react": "^4.3.1",
     "@vitest/coverage-v8": "^3.2.4",
     "axios": "^1.13.5",
-    "cogent-js": "^2.0.0",
     "jsdom": "^25.0.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
