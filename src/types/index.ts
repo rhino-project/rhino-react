@@ -38,6 +38,36 @@ export interface ModelQueryOptions {
    * unknown scope returns 403. Serialized as ?scope=<name>.
    */
   scope?: string;
+  /**
+   * OPT-IN record-level computed attributes to include on each returned record
+   * (e.g. ['full_name']). Nothing is computed server-side unless named here, so
+   * expensive per-row work is only paid for when you ask for it. Only attributes
+   * declared on the model AND allowed by the policy are accepted; anything else
+   * returns 403. Serialized as ?computed_attributes=a,b.
+   *
+   * For aggregates over the whole collection (counts, sums) use
+   * `useModelComputedAttributes` instead — those are evaluated once, not per row.
+   */
+  computedAttributes?: string[];
+}
+
+/**
+ * Options for `useModelComputedAttributes` — the collection-level aggregates
+ * endpoint. Filters, search and scope narrow the set the aggregates describe,
+ * exactly as they would narrow `useModelIndex`.
+ */
+export interface ComputedAttributesOptions {
+  /**
+   * Which collection-level computed attributes to fetch (e.g.
+   * ['active_users_count']). Omit to fetch every attribute the policy allows.
+   */
+  attributes?: string[];
+  /** Filter by field values — narrows the set the aggregates describe. */
+  filters?: Record<string, any>;
+  /** Full-text search query — narrows the set the aggregates describe. */
+  search?: string;
+  /** Server-defined named scope — narrows the set the aggregates describe. */
+  scope?: string;
 }
 
 /**

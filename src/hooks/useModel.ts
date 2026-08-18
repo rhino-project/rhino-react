@@ -4,7 +4,13 @@ import { useOrganization } from './useOrganization';
 import { extractPaginationFromHeaders } from '../lib/pagination';
 import { normalizeList, normalizeOne } from '../lib/normalize-response';
 import type { AxiosResponse } from 'axios';
-import type { ModelQueryOptions, QueryResponse, AuditLog, NestedOperation } from '../types';
+import type {
+  ModelQueryOptions,
+  QueryResponse,
+  AuditLog,
+  NestedOperation,
+  ComputedAttributesOptions,
+} from '../types';
 
 /**
  * Build the org/resource base path for a model, honoring the configured tenancy mode.
@@ -78,6 +84,10 @@ function buildQueryUrl(model: string, organization: string, options: ModelQueryO
 
   if (options.scope) {
     params.append('scope', options.scope);
+  }
+
+  if (options.computedAttributes && options.computedAttributes.length > 0) {
+    params.append('computed_attributes', options.computedAttributes.join(','));
   }
 
   if (options.page) {
@@ -169,6 +179,9 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
       }
       if (options.fields && options.fields.length > 0) {
         params.append('fields', Array.isArray(options.fields) ? options.fields.join(',') : options.fields);
+      }
+      if (options.computedAttributes && options.computedAttributes.length > 0) {
+        params.append('computed_attributes', options.computedAttributes.join(','));
       }
 
       const base = buildResourceBase(model, orgSlug);
@@ -266,6 +279,68 @@ export function useModelStore<T = Record<string, any>>(model: string) {
 }
 
 /**
+ * Hook to fetch COLLECTION-level computed attributes (aggregates).
+ *
+ * Hits `GET /{model}/computed?attributes=…`, where each attribute is evaluated
+ * ONCE for the whole collection instead of once per row — the cheap way to show
+ * counts and sums. Filters, search and scope narrow the set the aggregates
+ * describe, exactly as they narrow `useModelIndex`.
+ *
+ * Returns the attribute object itself, e.g. `{ active_users_count: 12 }`.
+ *
+ * @example
+ * const { data: stats } = useModelComputedAttributes('users', {
+ *   attributes: ['active_users_count', 'blocked_users_count'],
+ * });
+ * stats?.active_users_count;
+ *
+ * @example
+ * // Aggregates over the same set the current list is showing
+ * const { data: stats } = useModelComputedAttributes('users', {
+ *   attributes: ['active_users_count'],
+ *   filters: { team_id: 3 },
+ *   search: term,
+ * });
+ */
+export function useModelComputedAttributes<T = Record<string, any>>(
+  model: string,
+  options: ComputedAttributesOptions = {},
+) {
+  const organization = useOrganization();
+
+  return useQuery<T>({
+    queryKey: ['modelComputedAttributes', model, organization, options],
+    queryFn: async () => {
+      const orgSlug = String(organization ?? '').trim();
+      const url = `${buildResourceBase(model, orgSlug)}/computed`;
+      const params = new URLSearchParams();
+
+      if (options.attributes && options.attributes.length > 0) {
+        params.append('attributes', options.attributes.join(','));
+      }
+      if (options.filters) {
+        Object.entries(options.filters).forEach(([key, value]) => {
+          params.append(`filter[${key}]`, value);
+        });
+      }
+      if (options.search) {
+        params.append('search', options.search);
+      }
+      if (options.scope) {
+        params.append('scope', options.scope);
+      }
+
+      const queryString = params.toString();
+      const finalUrl = queryString ? `${url}?${queryString}` : url;
+
+      const response = await api.get(finalUrl);
+      return normalizeOne<T>(response.data);
+    },
+    enabled: !!organization || orgNotRequired(),
+  });
+}
+
+/**
  * Hook to fetch soft-deleted (trashed) models
  *
  * @example
@@ -306,6 +381,9 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
       }
       if (options.scope) {
         params.append('scope', options.scope);
+      }
+      if (options.computedAttributes && options.computedAttributes.length > 0) {
+        params.append('computed_attributes', options.computedAttributes.join(','));
       }
       if (options.page) {
         params.append('page', String(options.page));

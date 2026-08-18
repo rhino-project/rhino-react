@@ -28,6 +28,7 @@ export { events, createWebEvents } from './lib/events';
 export type {
   PaginationMeta,
   ModelQueryOptions,
+  ComputedAttributesOptions,
   NestedOperation,
   AuditLog,
   LoginResult,

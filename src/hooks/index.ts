@@ -25,6 +25,9 @@ export {
   useModelDelete,
 } from './useModel';
 
+// Computed Attributes (collection-level aggregates)
+export { useModelComputedAttributes } from './useModel';
+
 // Soft Delete Operations
 export {
   useModelTrashed,
