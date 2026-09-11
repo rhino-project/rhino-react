@@ -13,6 +13,16 @@ export interface PaginationMeta {
 }
 
 /**
+ * A named-scope selection: scope name => its arguments. Use `null` (or an empty
+ * string) for a scope that takes none, a bare value for a scope with one
+ * declared parameter, and an object of parameter name => value for several.
+ */
+export type ScopeSelection = Record<
+  string,
+  string | number | boolean | null | Record<string, string | number | boolean>
+>;
+
+/**
  * Query options for model index/list operations
  */
 export interface ModelQueryOptions {
@@ -33,11 +43,24 @@ export interface ModelQueryOptions {
   /** Items per page (alternative name) */
   per_page?: number;
   /**
-   * Server-defined named scope to apply (e.g. 'availableForDrivers').
-   * Only scopes whitelisted on the model server-side are accepted; an
-   * unknown scope returns 403. Serialized as ?scope=<name>.
+   * Server-defined named scope(s) to apply. Only scopes whitelisted on the
+   * model server-side AND permitted by its policy are accepted; anything else
+   * returns 403.
+   *
+   * A bare name serializes as `?scope=<name>`:
+   *     scope: 'availableForDrivers'
+   *
+   * An object serializes as `?scope[<name>]=...`, which is how a scope receives
+   * arguments. A single declared parameter takes a bare value, and several take
+   * named keys:
+   *     scope: { archived: null }                       // no arguments
+   *     scope: { since: '2026-01-01' }                  // one parameter
+   *     scope: { window: { from: 'a', to: 'b' } }       // named parameters
+   *
+   * Up to three scopes may be combined in the object form, and they apply in
+   * key order.
    */
-  scope?: string;
+  scope?: string | ScopeSelection;
   /**
    * OPT-IN record-level computed attributes to include on each returned record
    * (e.g. ['full_name']). Nothing is computed server-side unless named here, so
@@ -66,8 +89,8 @@ export interface ComputedAttributesOptions {
   filters?: Record<string, any>;
   /** Full-text search query — narrows the set the aggregates describe. */
   search?: string;
-  /** Server-defined named scope — narrows the set the aggregates describe. */
-  scope?: string;
+  /** Server-defined named scope(s) — narrows the set the aggregates describe. */
+  scope?: string | ScopeSelection;
 }
 
 /**

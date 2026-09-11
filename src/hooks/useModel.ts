@@ -10,7 +10,45 @@ import type {
   AuditLog,
   NestedOperation,
   ComputedAttributesOptions,
+  ScopeSelection,
 } from '../types';
+
+/**
+ * Serialize the `scope` option.
+ *
+ * A bare name goes out as `?scope=<name>`, the form every Rhino version has
+ * accepted. An object goes out as `?scope[<name>]=...`, which is how a scope
+ * receives arguments: a bare value for a scope with one declared parameter,
+ * `scope[<name>][<param>]=` for several, and an empty value for a scope that
+ * takes none (the form to use when combining it with one that does).
+ */
+function appendScope(
+  params: URLSearchParams,
+  scope: string | ScopeSelection | undefined,
+): void {
+  if (!scope) return;
+
+  if (typeof scope === 'string') {
+    params.append('scope', scope);
+    return;
+  }
+
+  Object.entries(scope).forEach(([name, value]) => {
+    if (value === null || value === undefined || value === '') {
+      params.append(`scope[${name}]`, '');
+      return;
+    }
+
+    if (typeof value === 'object') {
+      Object.entries(value).forEach(([param, argument]) => {
+        params.append(`scope[${name}][${param}]`, String(argument));
+      });
+      return;
+    }
+
+    params.append(`scope[${name}]`, String(value));
+  });
+}
 
 /**
  * Build the org/resource base path for a model, honoring the configured tenancy mode.
@@ -82,9 +120,7 @@ function buildQueryUrl(model: string, organization: string, options: ModelQueryO
     params.append('search', options.search);
   }
 
-  if (options.scope) {
-    params.append('scope', options.scope);
-  }
+  appendScope(params, options.scope);
 
   if (options.computedAttributes && options.computedAttributes.length > 0) {
     params.append('computed_attributes', options.computedAttributes.join(','));
@@ -326,9 +362,7 @@ export function useModelComputedAttributes<T = Record<string, any>>(
       if (options.search) {
         params.append('search', options.search);
       }
-      if (options.scope) {
-        params.append('scope', options.scope);
-      }
+      appendScope(params, options.scope);
 
       const queryString = params.toString();
       const finalUrl = queryString ? `${url}?${queryString}` : url;
@@ -379,9 +413,7 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
       if (options.search) {
         params.append('search', options.search);
       }
-      if (options.scope) {
-        params.append('scope', options.scope);
-      }
+      appendScope(params, options.scope);
       if (options.computedAttributes && options.computedAttributes.length > 0) {
         params.append('computed_attributes', options.computedAttributes.join(','));
       }

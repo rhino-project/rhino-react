@@ -158,3 +158,65 @@ describe('useModel — ?scope= support', () => {
     expect(api.get.mock.calls[0][0]).not.toContain('scope=');
   });
 });
+
+describe('useModel — scope arguments', () => {
+  it('serializes a no-argument scope in the object form with an empty value', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(() => useModelIndex('routes', { scope: { archived: null } }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(decodeURIComponent(api.get.mock.calls[0][0])).toContain('scope[archived]=');
+  });
+
+  it('serializes a single argument as a bare value', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(() => useModelIndex('routes', { scope: { since: '2026-01-01' } }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(decodeURIComponent(api.get.mock.calls[0][0])).toContain('scope[since]=2026-01-01');
+  });
+
+  it('serializes named arguments one key at a time', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(() => useModelIndex('routes', { scope: { window: { from: 'a', to: 'b' } } }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    const url = decodeURIComponent(api.get.mock.calls[0][0]);
+    expect(url).toContain('scope[window][from]=a');
+    expect(url).toContain('scope[window][to]=b');
+  });
+
+  it('serializes several scopes in key order', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(
+      () => useModelIndex('routes', { scope: { archived: null, since: '2026-01-01' } }),
+      { wrapper: createWrapper() },
+    );
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    const url = decodeURIComponent(api.get.mock.calls[0][0]);
+    expect(url.indexOf('scope[archived]=')).toBeLessThan(url.indexOf('scope[since]='));
+  });
+
+  it('serializes booleans and numbers', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(() => useModelIndex('routes', { scope: { flagged: false, longerThan: 5 } }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    const url = decodeURIComponent(api.get.mock.calls[0][0]);
+    expect(url).toContain('scope[flagged]=false');
+    expect(url).toContain('scope[longerThan]=5');
+  });
+
+  it('keeps the string form byte-for-byte', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(() => useModelTrashed('routes', { scope: 'archived' }), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(api.get).toHaveBeenCalled());
+    expect(api.get.mock.calls[0][0]).toContain('scope=archived');
+  });
+});

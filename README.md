@@ -353,6 +353,21 @@ const { data: response } = useModelIndex('routes', {
 });
 ```
 
+A scope that declares parameters takes an object instead of a name: the key is the
+scope, the value its argument. Up to three scopes may be combined, applied in key
+order. The two forms cannot be mixed in one request.
+
+```tsx
+useModelIndex('routes', { scope: { since: '2026-01-01' } });
+// ?scope[since]=2026-01-01
+
+useModelIndex('routes', { scope: { window: { from: 'a', to: 'b' } } });
+// ?scope[window][from]=a&scope[window][to]=b
+
+useModelIndex('routes', { scope: { archived: null, since: '2026-01-01' } });
+// ?scope[archived]=&scope[since]=2026-01-01
+```
+
 ### Relationships
 
 Eager load related data with includes:

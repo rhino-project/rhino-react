@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.5.0] - 2026-09-11
+
+### Added
+
+- **Named scopes can carry arguments.** The `scope` option now takes an object as
+  well as a name: `{ since: '2026-01-01' }` serializes to `?scope[since]=2026-01-01`,
+  and `{ window: { from: 'a', to: 'b' } }` to
+  `?scope[window][from]=a&scope[window][to]=b`. Up to three scopes may be combined
+  in one request, applied in key order; write a no-argument scope as
+  `{ archived: null }` when combining it with one that takes arguments. The string
+  form (`scope: 'archived'`) is unchanged, and the two forms cannot be mixed in a
+  single request because they share the `scope` query key. Exported as the new
+  `ScopeSelection` type.
+
+### Changed
+
+- Filtering or sorting by an attribute the server's policy hides from the current
+  user now returns **403** (server-side change in Rhino 4.8.0). A column the model
+  never allowlisted is still ignored silently, as before.
+
 ## [4.2.0] - 2026-06-07
 
 ### Added
