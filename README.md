@@ -368,6 +368,43 @@ useModelIndex('routes', { scope: { archived: null, since: '2026-01-01' } });
 // ?scope[archived]=&scope[since]=2026-01-01
 ```
 
+### Computed Attributes
+
+Record-level computed attributes are opt-in per request. Name them and each returned
+record carries them; nothing is computed server-side unless asked for.
+
+```tsx
+useModelIndex('users', { computedAttributes: ['full_name', 'avatar_url'] });
+// ?computed_attributes=full_name,avatar_url
+```
+
+Collection-level aggregates (counts, sums) are evaluated once for the whole set via
+`useModelComputedAttributes`, which hits `GET /{model}/computed`:
+
+```tsx
+const { data: stats } = useModelComputedAttributes('users', {
+  attributes: ['active_users_count'],
+  filters: { team_id: 3 },
+});
+// /users/computed?attributes=active_users_count&filter[team_id]=3
+```
+
+An attribute that declares parameters takes an object instead of a list: the key is
+the attribute, the value its argument. A bare value binds to a single declared
+parameter, an object supplies named ones, and `null` means no arguments (use it when
+combining with an attribute that takes some). Works the same on `computedAttributes`
+and `attributes`.
+
+```tsx
+useModelIndex('tickets', { computedAttributes: { ticketsSince: '2026-01-01' } });
+// ?computed_attributes[ticketsSince]=2026-01-01
+
+useModelComputedAttributes('orders', {
+  attributes: { revenue: { from: 'a', to: 'b' }, activeUsersCount: null },
+});
+// ?attributes[revenue][from]=a&attributes[revenue][to]=b&attributes[activeUsersCount]=
+```
+
 ### Relationships
 
 Eager load related data with includes:

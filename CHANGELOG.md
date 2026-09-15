@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.6.0] - 2026-09-15
+
+### Added
+
+- **Computed attributes can carry arguments.** `computedAttributes` (on
+  `useModelIndex` / `useModelShow` / `useModelTrashed`) and `attributes` (on
+  `useModelComputedAttributes`) now take an object as well as a list, mirroring
+  the 4.5.0 scope-arguments shape: `{ ticketsSince: '2026-01-01' }` serializes to
+  `?computed_attributes[ticketsSince]=2026-01-01`, and
+  `{ revenue: { from: 'a', to: 'b' }, activeUsersCount: null }` to
+  `?attributes[revenue][from]=a&attributes[revenue][to]=b&attributes[activeUsersCount]=`.
+  A no-argument entry keeps its trailing `=`, which the server requires. The list
+  form (`['a', 'b']` → `?computed_attributes=a,b`) is byte-for-byte unchanged.
+  Exported as the new `ComputedAttributeSelection` type.
+
+### Fixed
+
+- `ScopeSelection` is now actually exported from the package entry (4.5.0
+  documented it but only exported it from the types module).
+
 ## [4.5.0] - 2026-09-11
 
 ### Added

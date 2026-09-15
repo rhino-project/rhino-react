@@ -23,6 +23,17 @@ export type ScopeSelection = Record<
 >;
 
 /**
+ * A computed-attribute selection: attribute name => its arguments. Use `null`
+ * (or an empty string) for an attribute that takes none, a bare value for one
+ * with a single declared parameter, and an object of parameter name => value
+ * for several. Same shape as `ScopeSelection`.
+ */
+export type ComputedAttributeSelection = Record<
+  string,
+  string | number | boolean | null | Record<string, string | number | boolean>
+>;
+
+/**
  * Query options for model index/list operations
  */
 export interface ModelQueryOptions {
@@ -66,12 +77,23 @@ export interface ModelQueryOptions {
    * (e.g. ['full_name']). Nothing is computed server-side unless named here, so
    * expensive per-row work is only paid for when you ask for it. Only attributes
    * declared on the model AND allowed by the policy are accepted; anything else
-   * returns 403. Serialized as ?computed_attributes=a,b.
+   * returns 403.
+   *
+   * An array serializes as `?computed_attributes=a,b`:
+   *     computedAttributes: ['full_name', 'avatar_url']
+   *
+   * An object serializes as `?computed_attributes[<name>]=...`, which is how an
+   * attribute receives arguments. A single declared parameter takes a bare
+   * value, several take named keys, and `null` means no arguments (the form to
+   * use when combining it with one that takes some):
+   *     computedAttributes: { full_name: null }                    // no arguments
+   *     computedAttributes: { ticketsSince: '2026-01-01' }         // one parameter
+   *     computedAttributes: { revenue: { from: 'a', to: 'b' } }    // named parameters
    *
    * For aggregates over the whole collection (counts, sums) use
    * `useModelComputedAttributes` instead — those are evaluated once, not per row.
    */
-  computedAttributes?: string[];
+  computedAttributes?: string[] | ComputedAttributeSelection;
 }
 
 /**
@@ -83,8 +105,15 @@ export interface ComputedAttributesOptions {
   /**
    * Which collection-level computed attributes to fetch (e.g.
    * ['active_users_count']). Omit to fetch every attribute the policy allows.
+   *
+   * An array serializes as `?attributes=a,b`. An object serializes as
+   * `?attributes[<name>]=...`, which is how an attribute receives arguments —
+   * a bare value for one declared parameter, named keys for several, and
+   * `null` for none:
+   *     attributes: { revenue: { from: 'a', to: 'b' }, activeUsersCount: null }
+   *     // ?attributes[revenue][from]=a&attributes[revenue][to]=b&attributes[activeUsersCount]=
    */
-  attributes?: string[];
+  attributes?: string[] | ComputedAttributeSelection;
   /** Filter by field values — narrows the set the aggregates describe. */
   filters?: Record<string, any>;
   /** Full-text search query — narrows the set the aggregates describe. */

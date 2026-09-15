@@ -10,8 +10,38 @@ import type {
   AuditLog,
   NestedOperation,
   ComputedAttributesOptions,
+  ComputedAttributeSelection,
   ScopeSelection,
 } from '../types';
+
+/**
+ * Serialize a name => arguments selection in the bracket wire form under
+ * `key`: `key[<name>]=` for an entry that takes no arguments (null, undefined
+ * or ''), `key[<name>]=<value>` for a bare value bound to a single declared
+ * parameter, and `key[<name>][<param>]=<value>` per key for named parameters.
+ * Booleans go out as "true"/"false". Entries are emitted in key order.
+ */
+function appendBracketSelection(
+  params: URLSearchParams,
+  key: string,
+  selection: ScopeSelection | ComputedAttributeSelection,
+): void {
+  Object.entries(selection).forEach(([name, value]) => {
+    if (value === null || value === undefined || value === '') {
+      params.append(`${key}[${name}]`, '');
+      return;
+    }
+
+    if (typeof value === 'object') {
+      Object.entries(value).forEach(([param, argument]) => {
+        params.append(`${key}[${name}][${param}]`, String(argument));
+      });
+      return;
+    }
+
+    params.append(`${key}[${name}]`, String(value));
+  });
+}
 
 /**
  * Serialize the `scope` option.
@@ -27,27 +57,36 @@ function appendScope(
   scope: string | ScopeSelection | undefined,
 ): void {
   if (!scope) return;
-
   if (typeof scope === 'string') {
     params.append('scope', scope);
     return;
   }
+  appendBracketSelection(params, 'scope', scope);
+}
 
-  Object.entries(scope).forEach(([name, value]) => {
-    if (value === null || value === undefined || value === '') {
-      params.append(`scope[${name}]`, '');
-      return;
+/**
+ * Serialize a computed-attribute selection under `key` (`computed_attributes`
+ * on index/show/trashed, `attributes` on `/computed`).
+ *
+ * An array goes out as the comma list `?key=a,b`, the form every Rhino version
+ * has accepted; an empty array emits nothing. An object goes out in the
+ * bracket form `?key[<name>]=...`, which is how an attribute receives
+ * arguments — see `appendBracketSelection`. A no-argument entry keeps its
+ * trailing `=` (`key[<name>]=`), which the server requires.
+ */
+function appendComputedSelection(
+  params: URLSearchParams,
+  key: string,
+  value: string[] | ComputedAttributeSelection | undefined,
+): void {
+  if (!value) return;
+  if (Array.isArray(value)) {
+    if (value.length > 0) {
+      params.append(key, value.join(','));
     }
-
-    if (typeof value === 'object') {
-      Object.entries(value).forEach(([param, argument]) => {
-        params.append(`scope[${name}][${param}]`, String(argument));
-      });
-      return;
-    }
-
-    params.append(`scope[${name}]`, String(value));
-  });
+    return;
+  }
+  appendBracketSelection(params, key, value);
 }
 
 /**
@@ -121,10 +160,7 @@ function buildQueryUrl(model: string, organization: string, options: ModelQueryO
   }
 
   appendScope(params, options.scope);
-
-  if (options.computedAttributes && options.computedAttributes.length > 0) {
-    params.append('computed_attributes', options.computedAttributes.join(','));
-  }
+  appendComputedSelection(params, 'computed_attributes', options.computedAttributes);
 
   if (options.page) {
     params.append('page', String(options.page));
@@ -216,9 +252,7 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
       if (options.fields && options.fields.length > 0) {
         params.append('fields', Array.isArray(options.fields) ? options.fields.join(',') : options.fields);
       }
-      if (options.computedAttributes && options.computedAttributes.length > 0) {
-        params.append('computed_attributes', options.computedAttributes.join(','));
-      }
+      appendComputedSelection(params, 'computed_attributes', options.computedAttributes);
 
       const base = buildResourceBase(model, orgSlug);
       const queryString = params.toString();
@@ -331,6 +365,13 @@ export function useModelStore<T = Record<string, any>>(model: string) {
  * stats?.active_users_count;
  *
  * @example
+ * // Attributes that declare parameters take an object: name => arguments
+ * const { data: stats } = useModelComputedAttributes('orders', {
+ *   attributes: { revenue: { from: '2026-01-01', to: '2026-02-01' }, activeUsersCount: null },
+ * });
+ * // ?attributes[revenue][from]=2026-01-01&attributes[revenue][to]=2026-02-01&attributes[activeUsersCount]=
+ *
+ * @example
  * // Aggregates over the same set the current list is showing
  * const { data: stats } = useModelComputedAttributes('users', {
  *   attributes: ['active_users_count'],
@@ -351,9 +392,7 @@ export function useModelComputedAttributes<T = Record<string, any>>(
       const url = `${buildResourceBase(model, orgSlug)}/computed`;
       const params = new URLSearchParams();
 
-      if (options.attributes && options.attributes.length > 0) {
-        params.append('attributes', options.attributes.join(','));
-      }
+      appendComputedSelection(params, 'attributes', options.attributes);
       if (options.filters) {
         Object.entries(options.filters).forEach(([key, value]) => {
           params.append(`filter[${key}]`, value);
@@ -414,9 +453,7 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
         params.append('search', options.search);
       }
       appendScope(params, options.scope);
-      if (options.computedAttributes && options.computedAttributes.length > 0) {
-        params.append('computed_attributes', options.computedAttributes.join(','));
-      }
+      appendComputedSelection(params, 'computed_attributes', options.computedAttributes);
       if (options.page) {
         params.append('page', String(options.page));
       }

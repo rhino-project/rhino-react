@@ -275,3 +275,345 @@ describe('useModelComputedAttributes', () => {
     expect(urls.some((u) => u.includes('attributes=b'))).toBe(true);
   });
 });
+
+describe('computed attributes — legacy comma list is byte-identical', () => {
+  // The array form must keep producing exactly the URLs 4.4.0 produced
+  // (URLSearchParams percent-encodes the comma as %2C).
+  it('useModelIndex: exact URL for a comma list', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(
+      () => useModelIndex('users', { computedAttributes: ['full_name', 'avatar_url'] }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(await firstGetUrl()).toBe('/my-org/users?computed_attributes=full_name%2Cavatar_url');
+  });
+
+  it('useModelShow: exact URL for a comma list', async () => {
+    api.get.mockResolvedValue({ data: { id: 1 }, headers: {} });
+    renderHook(
+      () => useModelShow('users', 5, { computedAttributes: ['full_name', 'avatar_url'] }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(await firstGetUrl()).toBe('/my-org/users/5?computed_attributes=full_name%2Cavatar_url');
+  });
+
+  it('useModelTrashed: exact URL for a comma list', async () => {
+    api.get.mockResolvedValue({ data: [], headers: {} });
+    renderHook(
+      () => useModelTrashed('users', { computedAttributes: ['full_name', 'avatar_url'] }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(await firstGetUrl()).toBe('/my-org/users/trashed?computed_attributes=full_name%2Cavatar_url');
+  });
+
+  it('useModelComputedAttributes: exact URL for a comma list', async () => {
+    api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+    renderHook(
+      () =>
+        useModelComputedAttributes('users', {
+          attributes: ['active_users_count', 'blocked_users_count'],
+        }),
+      { wrapper: createWrapper() },
+    );
+
+    expect(await firstGetUrl()).toBe(
+      '/my-org/users/computed?attributes=active_users_count%2Cblocked_users_count',
+    );
+  });
+});
+
+describe('computed attributes — arguments (object form)', () => {
+  /** The first GET URL with percent-encoding undone, for readable bracket assertions. */
+  async function firstGetUrlDecoded() {
+    return decodeURIComponent(await firstGetUrl());
+  }
+
+  describe('useModelIndex', () => {
+    it('serializes a no-argument attribute with a trailing =', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(() => useModelIndex('users', { computedAttributes: { full_name: null } }), {
+        wrapper: createWrapper(),
+      });
+
+      expect(await firstGetUrlDecoded()).toBe('/my-org/users?computed_attributes[full_name]=');
+    });
+
+    it('treats an empty string like null (no arguments)', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(() => useModelIndex('users', { computedAttributes: { full_name: '' } }), {
+        wrapper: createWrapper(),
+      });
+
+      expect(await firstGetUrlDecoded()).toBe('/my-org/users?computed_attributes[full_name]=');
+    });
+
+    it('binds a bare value to the single declared parameter', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () => useModelIndex('users', { computedAttributes: { ticketsSince: '2026-01-01' } }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users?computed_attributes[ticketsSince]=2026-01-01',
+      );
+    });
+
+    it('serializes named parameters one key at a time', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () =>
+          useModelIndex('users', {
+            computedAttributes: { revenue: { from: 'a', to: 'b' } },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users?computed_attributes[revenue][from]=a&computed_attributes[revenue][to]=b',
+      );
+    });
+
+    it('mixes no-arg and named-arg entries in key order', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () =>
+          useModelIndex('users', {
+            computedAttributes: {
+              full_name: null,
+              ticketsSince: '2026-01-01',
+              revenue: { from: 'a', to: 'b' },
+            },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users?computed_attributes[full_name]=&computed_attributes[ticketsSince]=2026-01-01&computed_attributes[revenue][from]=a&computed_attributes[revenue][to]=b',
+      );
+    });
+
+    it('serializes booleans and numbers as strings', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () =>
+          useModelIndex('users', {
+            computedAttributes: { flagged: false, topN: 5, window: { strict: true, days: 30 } },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users?computed_attributes[flagged]=false&computed_attributes[topN]=5&computed_attributes[window][strict]=true&computed_attributes[window][days]=30',
+      );
+    });
+
+    it('omits the param for an empty object', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(() => useModelIndex('users', { computedAttributes: {} }), {
+        wrapper: createWrapper(),
+      });
+
+      expect(await firstGetUrl()).toBe('/my-org/users');
+    });
+
+    it('percent-encodes the brackets on the wire', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () => useModelIndex('users', { computedAttributes: { ticketsSince: '2026-01-01' } }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrl()).toBe(
+        '/my-org/users?computed_attributes%5BticketsSince%5D=2026-01-01',
+      );
+    });
+
+    it('composes the object form with filters, scope arguments and pagination', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () =>
+          useModelIndex('users', {
+            filters: { status: 'active' },
+            scope: { since: '2026-01-01' },
+            computedAttributes: { full_name: null, revenue: { from: 'a', to: 'b' } },
+            page: 2,
+            perPage: 10,
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users?filter[status]=active&scope[since]=2026-01-01&computed_attributes[full_name]=&computed_attributes[revenue][from]=a&computed_attributes[revenue][to]=b&page=2&per_page=10',
+      );
+    });
+  });
+
+  describe('useModelShow', () => {
+    it('serializes a no-argument attribute with a trailing =', async () => {
+      api.get.mockResolvedValue({ data: { id: 1 }, headers: {} });
+      renderHook(() => useModelShow('users', 5, { computedAttributes: { full_name: null } }), {
+        wrapper: createWrapper(),
+      });
+
+      expect(await firstGetUrlDecoded()).toBe('/my-org/users/5?computed_attributes[full_name]=');
+    });
+
+    it('binds a bare value to the single declared parameter', async () => {
+      api.get.mockResolvedValue({ data: { id: 1 }, headers: {} });
+      renderHook(
+        () => useModelShow('users', 5, { computedAttributes: { ticketsSince: '2026-01-01' } }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/5?computed_attributes[ticketsSince]=2026-01-01',
+      );
+    });
+
+    it('mixes no-arg and named-arg entries', async () => {
+      api.get.mockResolvedValue({ data: { id: 1 }, headers: {} });
+      renderHook(
+        () =>
+          useModelShow('users', 5, {
+            computedAttributes: { full_name: null, revenue: { from: 'a', to: 'b' } },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/5?computed_attributes[full_name]=&computed_attributes[revenue][from]=a&computed_attributes[revenue][to]=b',
+      );
+    });
+  });
+
+  describe('useModelTrashed', () => {
+    it('serializes a no-argument attribute with a trailing =', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(() => useModelTrashed('users', { computedAttributes: { full_name: null } }), {
+        wrapper: createWrapper(),
+      });
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/trashed?computed_attributes[full_name]=',
+      );
+    });
+
+    it('binds a bare value to the single declared parameter', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () => useModelTrashed('users', { computedAttributes: { ticketsSince: '2026-01-01' } }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/trashed?computed_attributes[ticketsSince]=2026-01-01',
+      );
+    });
+
+    it('mixes no-arg and named-arg entries', async () => {
+      api.get.mockResolvedValue({ data: [], headers: {} });
+      renderHook(
+        () =>
+          useModelTrashed('users', {
+            computedAttributes: { full_name: null, revenue: { from: 'a', to: 'b' } },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/trashed?computed_attributes[full_name]=&computed_attributes[revenue][from]=a&computed_attributes[revenue][to]=b',
+      );
+    });
+  });
+
+  describe('useModelComputedAttributes', () => {
+    it('serializes a no-argument attribute with a trailing =', async () => {
+      api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+      renderHook(
+        () => useModelComputedAttributes('users', { attributes: { activeUsersCount: null } }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/computed?attributes[activeUsersCount]=',
+      );
+    });
+
+    it('binds a bare value to the single declared parameter', async () => {
+      api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+      renderHook(
+        () => useModelComputedAttributes('users', { attributes: { ticketsSince: '2026-01-01' } }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/computed?attributes[ticketsSince]=2026-01-01',
+      );
+    });
+
+    it('serializes named parameters and a no-arg entry together (the documented wire form)', async () => {
+      api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+      renderHook(
+        () =>
+          useModelComputedAttributes('users', {
+            attributes: { revenue: { from: 'a', to: 'b' }, activeUsersCount: null },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/computed?attributes[revenue][from]=a&attributes[revenue][to]=b&attributes[activeUsersCount]=',
+      );
+    });
+
+    it('omits the param for an empty object', async () => {
+      api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+      renderHook(() => useModelComputedAttributes('users', { attributes: {} }), {
+        wrapper: createWrapper(),
+      });
+
+      expect(await firstGetUrl()).toBe('/my-org/users/computed');
+    });
+
+    it('composes the object form with filters, search and scope arguments', async () => {
+      api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+      renderHook(
+        () =>
+          useModelComputedAttributes('users', {
+            attributes: { revenue: { from: 'a', to: 'b' } },
+            filters: { team_id: 3 },
+            search: 'ada',
+            scope: { since: '2026-01-01' },
+          }),
+        { wrapper: createWrapper() },
+      );
+
+      expect(await firstGetUrlDecoded()).toBe(
+        '/my-org/users/computed?attributes[revenue][from]=a&attributes[revenue][to]=b&filter[team_id]=3&search=ada&scope[since]=2026-01-01',
+      );
+    });
+
+    it('distinct argument values issue distinct GET URLs (cache differentiation)', async () => {
+      api.get.mockResolvedValue({ data: { data: {} }, headers: {} });
+      const wrapper = createWrapper();
+
+      renderHook(
+        () => useModelComputedAttributes('users', { attributes: { ticketsSince: '2026-01-01' } }),
+        { wrapper },
+      );
+      renderHook(
+        () => useModelComputedAttributes('users', { attributes: { ticketsSince: '2026-02-01' } }),
+        { wrapper },
+      );
+
+      await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+      const urls = api.get.mock.calls.map((c) => decodeURIComponent(c[0]));
+      expect(urls).toContain('/my-org/users/computed?attributes[ticketsSince]=2026-01-01');
+      expect(urls).toContain('/my-org/users/computed?attributes[ticketsSince]=2026-02-01');
+    });
+  });
+});
