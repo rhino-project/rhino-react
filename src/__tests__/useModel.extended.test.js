@@ -521,7 +521,7 @@ describe('useNestedOperations – edge cases', () => {
       await result.current.mutateAsync({ operations });
     });
 
-    expect(api.post).toHaveBeenCalledWith('/org-1/nested-operations', { operations });
+    expect(api.post).toHaveBeenCalledWith('/org-1/nested', { operations });
   });
 
   it('should handle operations with cross-references ($0.id)', async () => {
@@ -541,7 +541,7 @@ describe('useNestedOperations – edge cases', () => {
       await result.current.mutateAsync({ operations });
     });
 
-    expect(api.post).toHaveBeenCalledWith('/org-1/nested-operations', { operations });
+    expect(api.post).toHaveBeenCalledWith('/org-1/nested', { operations });
   });
 
   it('should propagate errors from nested operations', async () => {

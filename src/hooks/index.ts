@@ -19,6 +19,7 @@ export { useRegister, usePasswordRecover, useResetPassword } from './useAuthActi
 // Model CRUD Operations
 export {
   useModelIndex,
+  useModelInfinite,
   useModelShow,
   useModelStore,
   useModelUpdate,

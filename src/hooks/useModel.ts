@@ -1,8 +1,23 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import api, { getTenancy } from '../lib/axios';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import type {
+  InfiniteData,
+  QueryClient,
+  UseInfiniteQueryResult,
+  UseQueryResult,
+} from '@tanstack/react-query';
+import api from '../lib/axios';
+import { apiConfig } from '../lib/api-config';
 import { useOrganization } from './useOrganization';
-import { extractPaginationFromHeaders } from '../lib/pagination';
-import { normalizeList, normalizeOne } from '../lib/normalize-response';
+import {
+  buildResourceBase,
+  orgNotRequired,
+  modelKeys,
+  fetchModelIndex,
+  fetchModelShow,
+  fetchModelComputedAttributes,
+  fetchModelTrashed,
+  fetchModelAudit,
+} from '../lib/model';
 import type { AxiosResponse } from 'axios';
 import type {
   ModelQueryOptions,
@@ -10,167 +25,79 @@ import type {
   AuditLog,
   NestedOperation,
   ComputedAttributesOptions,
-  ComputedAttributeSelection,
-  ScopeSelection,
+  PaginationMeta,
+  ModelQueryHookOptions,
+  ModelInfiniteQueryHookOptions,
+  ModelMutationHookOptions,
 } from '../types';
 
 /**
- * Serialize a name => arguments selection in the bracket wire form under
- * `key`: `key[<name>]=` for an entry that takes no arguments (null, undefined
- * or ''), `key[<name>]=<value>` for a bare value bound to a single declared
- * parameter, and `key[<name>][<param>]=<value>` per key for named parameters.
- * Booleans go out as "true"/"false". Entries are emitted in key order.
+ * AND the hook's own `enabled` guard (organization present, id present) with
+ * the caller's `enabled`. The caller can narrow the guard but never widen it.
+ * Both TanStack Query v5 forms are handled: a boolean, and a function of the
+ * query.
  */
-function appendBracketSelection(
-  params: URLSearchParams,
-  key: string,
-  selection: ScopeSelection | ComputedAttributeSelection,
-): void {
-  Object.entries(selection).forEach(([name, value]) => {
-    if (value === null || value === undefined || value === '') {
-      params.append(`${key}[${name}]`, '');
-      return;
-    }
-
-    if (typeof value === 'object') {
-      Object.entries(value).forEach(([param, argument]) => {
-        params.append(`${key}[${name}][${param}]`, String(argument));
-      });
-      return;
-    }
-
-    params.append(`${key}[${name}]`, String(value));
-  });
+function combineEnabled(guard: boolean, enabled: unknown): any {
+  if (enabled === undefined) return guard;
+  if (typeof enabled === 'function') {
+    return (query: unknown) => guard && !!enabled(query);
+  }
+  return guard && !!enabled;
 }
 
 /**
- * Serialize the `scope` option.
- *
- * A bare name goes out as `?scope=<name>`, the form every Rhino version has
- * accepted. An object goes out as `?scope[<name>]=...`, which is how a scope
- * receives arguments: a bare value for a scope with one declared parameter,
- * `scope[<name>][<param>]=` for several, and an empty value for a scope that
- * takes none (the form to use when combining it with one that does).
+ * Wrap the caller's mutation options so the hook's cache invalidation always
+ * runs first on success, followed by the caller's own `onSuccess`.
  */
-function appendScope(
-  params: URLSearchParams,
-  scope: string | ScopeSelection | undefined,
-): void {
-  if (!scope) return;
-  if (typeof scope === 'string') {
-    params.append('scope', scope);
-    return;
-  }
-  appendBracketSelection(params, 'scope', scope);
+function withInvalidation<TOptions extends { onSuccess?: (...args: any[]) => unknown }>(
+  mutationOptions: TOptions | undefined,
+  invalidate: (...args: any[]) => void,
+) {
+  return {
+    ...mutationOptions,
+    onSuccess: (...args: any[]) => {
+      invalidate(...args);
+      return mutationOptions?.onSuccess?.(...args);
+    },
+  };
+}
+
+/** Invalidate every cached list of a model: paged (`useModelIndex`) and accumulated (`useModelInfinite`). */
+function invalidateLists(queryClient: QueryClient, model: string): void {
+  queryClient.invalidateQueries({ queryKey: modelKeys.index(model) });
+  queryClient.invalidateQueries({ queryKey: modelKeys.infinite(model) });
+}
+
+/** Works on React Native too, where `FormData` is a polyfill. */
+function isFormData(value: unknown): value is FormData {
+  return typeof FormData !== 'undefined' && value instanceof FormData;
 }
 
 /**
- * Serialize a computed-attribute selection under `key` (`computed_attributes`
- * on index/show/trashed, `attributes` on `/computed`).
- *
- * An array goes out as the comma list `?key=a,b`, the form every Rhino version
- * has accepted; an empty array emits nothing. An object goes out in the
- * bracket form `?key[<name>]=...`, which is how an attribute receives
- * arguments — see `appendBracketSelection`. A no-argument entry keeps its
- * trailing `=` (`key[<name>]=`), which the server requires.
+ * Per-request config for a multipart body. The instance default is
+ * `application/json`, which would make axios serialize the form to JSON and
+ * drop its files. `multipart/form-data` keeps the body intact: the browser
+ * adapter then drops the header so the browser writes it with the boundary,
+ * and React Native's networking layer appends the boundary itself.
  */
-function appendComputedSelection(
-  params: URLSearchParams,
-  key: string,
-  value: string[] | ComputedAttributeSelection | undefined,
-): void {
-  if (!value) return;
-  if (Array.isArray(value)) {
-    if (value.length > 0) {
-      params.append(key, value.join(','));
-    }
-    return;
-  }
-  appendBracketSelection(params, key, value);
-}
+const MULTIPART_CONFIG = { headers: { 'Content-Type': 'multipart/form-data' } };
 
 /**
- * Build the org/resource base path for a model, honoring the configured tenancy mode.
- *
- * - `'path'` (default): `/{org}/{model}` — the org slug is a URL path segment
- *   (path-prefix multitenancy). Byte-for-byte today's behavior.
- * - `'subdomain'`: `/{model}` — the org is carried by the request HOST, so no org
- *   segment is prepended. No org is required in context: the hook works with NO org
- *   set (a subdomain-mode app needs no placeholder org slug).
- *
- * @param model - The model slug (e.g. 'users').
- * @param organization - The current org slug from context (required only in `'path'` mode).
- * @returns The base resource path, with NO leading-org segment in subdomain mode.
+ * A multipart update travels as POST, because PHP does not parse a multipart
+ * body on PUT. The real method goes in the `X-HTTP-Method-Override` header,
+ * which Laravel honors, and deliberately NOT in a `_method` form field: Rhino
+ * treats every form field as an attribute, so `_method` is rejected with 403
+ * whenever the policy restricts the writable attributes.
  */
-function buildResourceBase(model: string, organization: string | null | undefined): string {
-  // Subdomain mode carries the org via the host, so no org segment (and no org
-  // requirement). Return `/{model}` regardless of whether an org is in context.
-  if (getTenancy() === 'subdomain') {
-    return `/${model}`;
-  }
-  const orgSlug = String(organization ?? '').trim();
-  if (!orgSlug) {
-    throw new Error('Organization slug is required and must be a non-empty string');
-  }
-  return `/${orgSlug}/${model}`;
-}
+const MULTIPART_PUT_CONFIG = {
+  headers: { 'Content-Type': 'multipart/form-data', 'X-HTTP-Method-Override': 'PUT' },
+};
 
-/**
- * Whether the data hooks may run without an organization in context.
- *
- * In `'subdomain'` mode the org is carried by the request host, so hooks/mutations
- * do NOT require an org. In the default `'path'` mode the org is a URL segment and
- * is still required.
- */
-function orgNotRequired(): boolean {
-  return getTenancy() === 'subdomain';
-}
-
-/**
- * Helper to build query URL with filters, includes, etc.
- */
-function buildQueryUrl(model: string, organization: string, options: ModelQueryOptions = {}): string {
-  if (!organization && !orgNotRequired()) {
-    throw new Error('Organization slug is required');
-  }
-
-  let url = buildResourceBase(model, organization);
-  const params = new URLSearchParams();
-
-  if (options.filters) {
-    Object.entries(options.filters).forEach(([key, value]) => {
-      params.append(`filter[${key}]`, value);
-    });
-  }
-
-  if (options.includes && options.includes.length > 0) {
-    params.append('include', options.includes.join(','));
-  }
-
-  if (options.sort) {
-    params.append('sort', options.sort);
-  }
-
-  if (options.fields && options.fields.length > 0) {
-    params.append('fields', options.fields.join(','));
-  }
-
-  if (options.search) {
-    params.append('search', options.search);
-  }
-
-  appendScope(params, options.scope);
-  appendComputedSelection(params, 'computed_attributes', options.computedAttributes);
-
-  if (options.page) {
-    params.append('page', String(options.page));
-  }
-  if (options.perPage || options.per_page) {
-    params.append('per_page', String(options.perPage || options.per_page));
-  }
-
-  const queryString = params.toString();
-  return queryString ? `${url}?${queryString}` : url;
+function formDataHas(data: FormData, field: string): boolean {
+  if (typeof data.has === 'function') return data.has(field);
+  // React Native's FormData polyfill has no `has()`; it exposes its parts.
+  const parts = (data as unknown as { getParts?: () => Array<{ fieldName?: string }> }).getParts?.() ?? [];
+  return parts.some((part) => part.fieldName === field);
 }
 
 /**
@@ -190,24 +117,86 @@ function buildQueryUrl(model: string, organization: string, options: ModelQueryO
  *   perPage: 20
  * });
  * const posts = response?.data || []; // Post[]
+ *
+ * // With TanStack Query options (polling, dependent queries, select, ...)
+ * const { data } = useModelIndex<Stop>(
+ *   'stops',
+ *   { filters: { trip_id: trip?.id } },
+ *   { enabled: !!trip, refetchInterval: 15000 },
+ * );
  */
-export function useModelIndex<T = Record<string, any>>(model: string, options: ModelQueryOptions = {}) {
+export function useModelIndex<T = Record<string, any>, TData = QueryResponse<T>>(
+  model: string,
+  options: ModelQueryOptions = {},
+  queryOptions?: ModelQueryHookOptions<QueryResponse<T>, TData>,
+): UseQueryResult<TData, Error> {
   const organization = useOrganization();
 
-  return useQuery<QueryResponse<T>>({
-    queryKey: ['modelIndex', model, organization, options],
-    queryFn: async () => {
-      const url = buildQueryUrl(model, organization!, options);
-      const response = await api.get(url);
-      const pagination = extractPaginationFromHeaders(response);
-
-      return {
-        data: normalizeList<T>(response.data),
-        pagination,
-      };
-    },
-    enabled: !!organization || orgNotRequired(),
+  return useQuery<QueryResponse<T>, Error, TData>({
+    ...queryOptions,
+    queryKey: modelKeys.index(model, options, organization ?? null),
+    queryFn: () => fetchModelIndex<T>(model, options, { organization: organization ?? null }),
+    enabled: combineEnabled(!!organization || orgNotRequired(), queryOptions?.enabled),
   });
+}
+
+/**
+ * Hook to fetch a list of models page by page, accumulating the pages
+ * ("load more" / infinite scroll).
+ *
+ * Built on `useInfiniteQuery`. The next page comes from the pagination headers
+ * of the last one, and there is none once the last page is reached.
+ * `options.page` is ignored (the hook drives the page); `perPage` is respected.
+ *
+ * Returns the standard infinite-query result plus `pagination`, the pagination
+ * of the most recently loaded page (`null` until a page with pagination headers
+ * has loaded).
+ *
+ * @example
+ * const { data, pagination, fetchNextPage, hasNextPage, isFetchingNextPage } =
+ *   useModelInfinite<Post>('posts', { sort: '-created_at', perPage: 20 });
+ * const posts = data?.pages.flatMap((page) => page.data) ?? [];
+ */
+export function useModelInfinite<T = Record<string, any>, TData = InfiniteData<QueryResponse<T>, number>>(
+  model: string,
+  options: ModelQueryOptions = {},
+  queryOptions?: ModelInfiniteQueryHookOptions<QueryResponse<T>, TData>,
+): UseInfiniteQueryResult<TData, Error> & { pagination: PaginationMeta | null } {
+  const organization = useOrganization();
+  const queryClient = useQueryClient();
+  const queryKey = modelKeys.infinite(model, options, organization ?? null);
+
+  const result = useInfiniteQuery<QueryResponse<T>, Error, TData, readonly unknown[], number>({
+    ...queryOptions,
+    queryKey,
+    queryFn: ({ pageParam }) =>
+      fetchModelIndex<T>(model, { ...options, page: pageParam }, { organization: organization ?? null }),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const pagination = lastPage.pagination;
+      return pagination && pagination.currentPage < pagination.lastPage
+        ? pagination.currentPage + 1
+        : undefined;
+    },
+    enabled: combineEnabled(!!organization || orgNotRequired(), queryOptions?.enabled),
+  });
+
+  // Read from the cache rather than `result.data`, which a caller's `select`
+  // may have reshaped.
+  const cached = queryClient.getQueryData<InfiniteData<QueryResponse<T>, number>>(queryKey);
+  const pagination = cached?.pages.length ? cached.pages[cached.pages.length - 1].pagination : null;
+
+  // TanStack Query re-renders only for the result properties a component has
+  // read, so the result is extended in place of being copied (a spread would
+  // read them all), and reading `pagination` counts as reading `data`.
+  return new Proxy(result, {
+    get: (target, key) => {
+      if (key !== 'pagination') return Reflect.get(target, key);
+      void Reflect.get(target, 'data');
+      return pagination;
+    },
+    has: (target, key) => key === 'pagination' || Reflect.has(target, key),
+  }) as UseInfiniteQueryResult<TData, Error> & { pagination: PaginationMeta | null };
 }
 
 /**
@@ -226,44 +215,22 @@ export function useModelIndex<T = Record<string, any>>(model: string, options: M
  * Note: `scope` is intentionally NOT applied to show — the backends do not
  * scope single-resource reads, so it is omitted here even if passed in options.
  */
-export function useModelShow<T = Record<string, any>>(model: string, id: string | number | null | undefined, options: ModelQueryOptions = {}) {
+export function useModelShow<T = Record<string, any>, TData = T>(
+  model: string,
+  id: string | number | null | undefined,
+  options: ModelQueryOptions = {},
+  queryOptions?: ModelQueryHookOptions<T, TData>,
+): UseQueryResult<TData, Error> {
   const organization = useOrganization();
 
-  return useQuery<T>({
-    queryKey: ['modelShow', model, id, organization, options],
-    queryFn: async () => {
-      const orgSlug = String(organization ?? '').trim();
-      if (!orgSlug && !orgNotRequired()) {
-        throw new Error('Organization slug is required. Please ensure you are logged in and have selected an organization.');
-      }
-
-      const params = new URLSearchParams();
-      if (options.includes && options.includes.length > 0) {
-        params.append('include', Array.isArray(options.includes) ? options.includes.join(',') : options.includes);
-      }
-      if (options.filters) {
-        Object.entries(options.filters).forEach(([key, value]) => {
-          params.append(`filter[${key}]`, value);
-        });
-      }
-      if (options.sort) {
-        params.append('sort', options.sort);
-      }
-      if (options.fields && options.fields.length > 0) {
-        params.append('fields', Array.isArray(options.fields) ? options.fields.join(',') : options.fields);
-      }
-      appendComputedSelection(params, 'computed_attributes', options.computedAttributes);
-
-      const base = buildResourceBase(model, orgSlug);
-      const queryString = params.toString();
-      const finalUrl = queryString
-        ? `${base}/${id}?${queryString}`
-        : `${base}/${id}`;
-
-      const response = await api.get(finalUrl);
-      return normalizeOne<T>(response.data);
-    },
-    enabled: (!!organization && !!String(organization).trim() || orgNotRequired()) && !!id,
+  return useQuery<T, Error, TData>({
+    ...queryOptions,
+    queryKey: modelKeys.show(model, id, options, organization ?? null),
+    queryFn: () => fetchModelShow<T>(model, id as string | number, options, { organization: organization ?? null }),
+    enabled: combineEnabled(
+      (!!organization && !!String(organization).trim() || orgNotRequired()) && !!id,
+      queryOptions?.enabled,
+    ),
   });
 }
 
@@ -273,8 +240,17 @@ export function useModelShow<T = Record<string, any>>(model: string, id: string 
  * @example
  * const updatePost = useModelUpdate<Post>('posts');
  * updatePost.mutate({ id: 1, data: { title: 'Updated' } });
+ *
+ * // With a file: pass FormData. It is sent as a multipart POST carrying
+ * // `X-HTTP-Method-Override: PUT`.
+ * const form = new FormData();
+ * form.append('cover', file);
+ * updatePost.mutate({ id: 1, data: form });
  */
-export function useModelUpdate<T = Record<string, any>>(model: string) {
+export function useModelUpdate<T = Record<string, any>, TContext = unknown>(
+  model: string,
+  mutationOptions?: ModelMutationHookOptions<T, { id: string | number; data: Partial<T> | FormData }, TContext>,
+) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
@@ -282,14 +258,20 @@ export function useModelUpdate<T = Record<string, any>>(model: string) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
-  return useMutation<T, Error, { id: string | number; data: Partial<T> }>({
+  return useMutation<T, Error, { id: string | number; data: Partial<T> | FormData }, TContext>({
+    ...withInvalidation(mutationOptions, () => {
+      invalidateLists(queryClient, model);
+      queryClient.invalidateQueries({ queryKey: modelKeys.show(model) });
+    }),
     mutationFn: ({ id, data }) => {
       const url = `${buildResourceBase(model, organization)}/${id}`;
+      if (isFormData(data)) {
+        // A caller that put its own `_method` in the form keeps full control of
+        // the override; otherwise the header carries it.
+        const config = formDataHas(data, '_method') ? MULTIPART_CONFIG : MULTIPART_PUT_CONFIG;
+        return api.post(url, data, config).then((res: AxiosResponse) => res.data);
+      }
       return api.put(url, data).then((res: AxiosResponse) => res.data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modelIndex', model] });
-      queryClient.invalidateQueries({ queryKey: ['modelShow', model] });
     },
   });
 }
@@ -301,7 +283,10 @@ export function useModelUpdate<T = Record<string, any>>(model: string) {
  * const deletePost = useModelDelete<Post>('posts');
  * deletePost.mutate(postId);
  */
-export function useModelDelete<T = Record<string, any>>(model: string) {
+export function useModelDelete<T = Record<string, any>, TContext = unknown>(
+  model: string,
+  mutationOptions?: ModelMutationHookOptions<T, string | number, TContext>,
+) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
@@ -309,14 +294,14 @@ export function useModelDelete<T = Record<string, any>>(model: string) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
-  return useMutation<T, Error, string | number>({
+  return useMutation<T, Error, string | number, TContext>({
+    ...withInvalidation(mutationOptions, () => {
+      invalidateLists(queryClient, model);
+      queryClient.invalidateQueries({ queryKey: modelKeys.show(model) });
+    }),
     mutationFn: (id) => {
       const url = `${buildResourceBase(model, organization)}/${id}`;
       return api.delete(url).then((res: AxiosResponse) => res.data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modelIndex', model] });
-      queryClient.invalidateQueries({ queryKey: ['modelShow', model] });
     },
   });
 }
@@ -327,8 +312,16 @@ export function useModelDelete<T = Record<string, any>>(model: string) {
  * @example
  * const createUser = useModelStore<User>('users');
  * createUser.mutate({ name: 'John Doe', email: 'john@example.com' });
+ *
+ * // With a file: pass FormData and it is sent as multipart
+ * const form = new FormData();
+ * form.append('avatar', file);
+ * createUser.mutate(form);
  */
-export function useModelStore<T = Record<string, any>>(model: string) {
+export function useModelStore<T = Record<string, any>, TContext = unknown>(
+  model: string,
+  mutationOptions?: ModelMutationHookOptions<T, Partial<T> | FormData, TContext>,
+) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
@@ -336,14 +329,17 @@ export function useModelStore<T = Record<string, any>>(model: string) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
-  return useMutation<T, Error, Partial<T>>({
+  return useMutation<T, Error, Partial<T> | FormData, TContext>({
+    ...withInvalidation(mutationOptions, () => {
+      invalidateLists(queryClient, model);
+      queryClient.invalidateQueries({ queryKey: modelKeys.show(model) });
+    }),
     mutationFn: (data) => {
       const url = buildResourceBase(model, organization);
+      if (isFormData(data)) {
+        return api.post(url, data, MULTIPART_CONFIG).then((res: AxiosResponse) => res.data);
+      }
       return api.post(url, data).then((res: AxiosResponse) => res.data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modelIndex', model] });
-      queryClient.invalidateQueries({ queryKey: ['modelShow', model] });
     },
   });
 }
@@ -379,37 +375,18 @@ export function useModelStore<T = Record<string, any>>(model: string) {
  *   search: term,
  * });
  */
-export function useModelComputedAttributes<T = Record<string, any>>(
+export function useModelComputedAttributes<T = Record<string, any>, TData = T>(
   model: string,
   options: ComputedAttributesOptions = {},
-) {
+  queryOptions?: ModelQueryHookOptions<T, TData>,
+): UseQueryResult<TData, Error> {
   const organization = useOrganization();
 
-  return useQuery<T>({
-    queryKey: ['modelComputedAttributes', model, organization, options],
-    queryFn: async () => {
-      const orgSlug = String(organization ?? '').trim();
-      const url = `${buildResourceBase(model, orgSlug)}/computed`;
-      const params = new URLSearchParams();
-
-      appendComputedSelection(params, 'attributes', options.attributes);
-      if (options.filters) {
-        Object.entries(options.filters).forEach(([key, value]) => {
-          params.append(`filter[${key}]`, value);
-        });
-      }
-      if (options.search) {
-        params.append('search', options.search);
-      }
-      appendScope(params, options.scope);
-
-      const queryString = params.toString();
-      const finalUrl = queryString ? `${url}?${queryString}` : url;
-
-      const response = await api.get(finalUrl);
-      return normalizeOne<T>(response.data);
-    },
-    enabled: !!organization || orgNotRequired(),
+  return useQuery<T, Error, TData>({
+    ...queryOptions,
+    queryKey: modelKeys.computed(model, options, organization ?? null),
+    queryFn: () => fetchModelComputedAttributes<T>(model, options, { organization: organization ?? null }),
+    enabled: combineEnabled(!!organization || orgNotRequired(), queryOptions?.enabled),
   });
 }
 
@@ -425,54 +402,18 @@ export function useModelComputedAttributes<T = Record<string, any>>(
  * });
  * const trashedPosts = response?.data || []; // Post[]
  */
-export function useModelTrashed<T = Record<string, any>>(model: string, options: ModelQueryOptions = {}) {
+export function useModelTrashed<T = Record<string, any>, TData = QueryResponse<T>>(
+  model: string,
+  options: ModelQueryOptions = {},
+  queryOptions?: ModelQueryHookOptions<QueryResponse<T>, TData>,
+): UseQueryResult<TData, Error> {
   const organization = useOrganization();
 
-  return useQuery<QueryResponse<T>>({
-    queryKey: ['modelTrashed', model, organization, options],
-    queryFn: async () => {
-      const orgSlug = String(organization ?? '').trim();
-      let url = `${buildResourceBase(model, orgSlug)}/trashed`;
-      const params = new URLSearchParams();
-
-      if (options.filters) {
-        Object.entries(options.filters).forEach(([key, value]) => {
-          params.append(`filter[${key}]`, value);
-        });
-      }
-      if (options.includes && options.includes.length > 0) {
-        params.append('include', options.includes.join(','));
-      }
-      if (options.sort) {
-        params.append('sort', options.sort);
-      }
-      if (options.fields && options.fields.length > 0) {
-        params.append('fields', options.fields.join(','));
-      }
-      if (options.search) {
-        params.append('search', options.search);
-      }
-      appendScope(params, options.scope);
-      appendComputedSelection(params, 'computed_attributes', options.computedAttributes);
-      if (options.page) {
-        params.append('page', String(options.page));
-      }
-      if (options.perPage || options.per_page) {
-        params.append('per_page', String(options.perPage || options.per_page));
-      }
-
-      const queryString = params.toString();
-      const finalUrl = queryString ? `${url}?${queryString}` : url;
-
-      const response = await api.get(finalUrl);
-      const pagination = extractPaginationFromHeaders(response);
-
-      return {
-        data: normalizeList<T>(response.data),
-        pagination,
-      };
-    },
-    enabled: !!organization || orgNotRequired(),
+  return useQuery<QueryResponse<T>, Error, TData>({
+    ...queryOptions,
+    queryKey: modelKeys.trashed(model, options, organization ?? null),
+    queryFn: () => fetchModelTrashed<T>(model, options, { organization: organization ?? null }),
+    enabled: combineEnabled(!!organization || orgNotRequired(), queryOptions?.enabled),
   });
 }
 
@@ -483,7 +424,10 @@ export function useModelTrashed<T = Record<string, any>>(model: string, options:
  * const restoreUser = useModelRestore<User>('users');
  * restoreUser.mutate(userId);
  */
-export function useModelRestore<T = Record<string, any>>(model: string) {
+export function useModelRestore<T = Record<string, any>, TContext = unknown>(
+  model: string,
+  mutationOptions?: ModelMutationHookOptions<T, string | number, TContext>,
+) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
@@ -491,15 +435,15 @@ export function useModelRestore<T = Record<string, any>>(model: string) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
-  return useMutation<T, Error, string | number>({
+  return useMutation<T, Error, string | number, TContext>({
+    ...withInvalidation(mutationOptions, () => {
+      invalidateLists(queryClient, model);
+      queryClient.invalidateQueries({ queryKey: modelKeys.trashed(model) });
+      queryClient.invalidateQueries({ queryKey: modelKeys.show(model) });
+    }),
     mutationFn: (id) => {
       const url = `${buildResourceBase(model, organization)}/${id}/restore`;
       return api.post(url).then((res: AxiosResponse) => res.data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modelIndex', model] });
-      queryClient.invalidateQueries({ queryKey: ['modelTrashed', model] });
-      queryClient.invalidateQueries({ queryKey: ['modelShow', model] });
     },
   });
 }
@@ -511,7 +455,10 @@ export function useModelRestore<T = Record<string, any>>(model: string) {
  * const forceDeleteUser = useModelForceDelete<User>('users');
  * forceDeleteUser.mutate(userId);
  */
-export function useModelForceDelete<T = Record<string, any>>(model: string) {
+export function useModelForceDelete<T = Record<string, any>, TContext = unknown>(
+  model: string,
+  mutationOptions?: ModelMutationHookOptions<T, string | number, TContext>,
+) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
@@ -519,13 +466,13 @@ export function useModelForceDelete<T = Record<string, any>>(model: string) {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
-  return useMutation<T, Error, string | number>({
+  return useMutation<T, Error, string | number, TContext>({
+    ...withInvalidation(mutationOptions, () => {
+      queryClient.invalidateQueries({ queryKey: modelKeys.trashed(model) });
+    }),
     mutationFn: (id) => {
       const url = `${buildResourceBase(model, organization)}/${id}/force-delete`;
       return api.delete(url).then((res: AxiosResponse) => res.data);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['modelTrashed', model] });
     },
   });
 }
@@ -543,7 +490,9 @@ export function useModelForceDelete<T = Record<string, any>>(model: string) {
  *   ]
  * });
  */
-export function useNestedOperations() {
+export function useNestedOperations<TContext = unknown>(
+  mutationOptions?: ModelMutationHookOptions<any[], { operations: NestedOperation[] }, TContext>,
+) {
   const organization = useOrganization();
   const queryClient = useQueryClient();
 
@@ -551,22 +500,22 @@ export function useNestedOperations() {
     throw new Error('Organization slug is required. All routes must include organization in the URL (e.g., /org-slug/dashboard)');
   }
 
-  return useMutation<any[], Error, { operations: NestedOperation[] }>({
-    mutationFn: ({ operations }) => {
-      // 'nested-operations' is a fixed endpoint, not a model; treat it like one
-      // so subdomain tenancy drops the org segment (`/nested-operations`).
-      const url = buildResourceBase('nested-operations', organization);
-      return api.post(url, { operations }).then((res: AxiosResponse) => res.data);
-    },
-    onSuccess: (_data, variables) => {
+  return useMutation<any[], Error, { operations: NestedOperation[] }, TContext>({
+    ...withInvalidation(mutationOptions, (_data: any[], variables: { operations: NestedOperation[] }) => {
       const affectedModels = new Set(
         variables.operations.map(op => op.model)
       );
 
       affectedModels.forEach(model => {
-        queryClient.invalidateQueries({ queryKey: ['modelIndex', model] });
-        queryClient.invalidateQueries({ queryKey: ['modelShow', model] });
+        invalidateLists(queryClient, model);
+        queryClient.invalidateQueries({ queryKey: modelKeys.show(model) });
       });
+    }),
+    mutationFn: ({ operations }) => {
+      // The nested endpoint is a fixed path, not a model; treat it like one so it
+      // follows tenancy (`/{org}/nested`, or `/nested` with no org segment).
+      const url = buildResourceBase(apiConfig.nestedPath, organization);
+      return api.post(url, { operations }).then((res: AxiosResponse) => res.data);
     },
   });
 }
@@ -578,34 +527,18 @@ export function useNestedOperations() {
  * const { data: response } = useModelAudit('users', 1, { page: 1, perPage: 50 });
  * const auditLogs = response?.data || []; // AuditLog[]
  */
-export function useModelAudit(model: string, id: string | number | null | undefined, options: ModelQueryOptions = {}) {
+export function useModelAudit<TData = QueryResponse<AuditLog>>(
+  model: string,
+  id: string | number | null | undefined,
+  options: ModelQueryOptions = {},
+  queryOptions?: ModelQueryHookOptions<QueryResponse<AuditLog>, TData>,
+): UseQueryResult<TData, Error> {
   const organization = useOrganization();
 
-  return useQuery<QueryResponse<AuditLog>>({
-    queryKey: ['modelAudit', model, id, organization, options],
-    queryFn: async () => {
-      const orgSlug = String(organization ?? '').trim();
-      let url = `${buildResourceBase(model, orgSlug)}/${id}/audit`;
-      const params = new URLSearchParams();
-
-      if (options.page) {
-        params.append('page', String(options.page));
-      }
-      if (options.perPage || options.per_page) {
-        params.append('per_page', String(options.perPage || options.per_page));
-      }
-
-      const queryString = params.toString();
-      const finalUrl = queryString ? `${url}?${queryString}` : url;
-
-      const response = await api.get(finalUrl);
-      const pagination = extractPaginationFromHeaders(response);
-
-      return {
-        data: normalizeList<AuditLog>(response.data),
-        pagination,
-      };
-    },
-    enabled: (!!organization || orgNotRequired()) && !!id,
+  return useQuery<QueryResponse<AuditLog>, Error, TData>({
+    ...queryOptions,
+    queryKey: modelKeys.audit(model, id, options, organization ?? null),
+    queryFn: () => fetchModelAudit(model, id as string | number, options, { organization: organization ?? null }),
+    enabled: combineEnabled((!!organization || orgNotRequired()) && !!id, queryOptions?.enabled),
   });
 }

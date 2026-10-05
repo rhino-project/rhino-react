@@ -1,5 +1,7 @@
 import axios from 'axios';
 import { storage, setStorageAdapter } from './storage';
+import { events } from './events';
+import { apiConfig } from './api-config';
 
 const api = axios.create({
   baseURL: '/api',
@@ -13,8 +15,6 @@ const api = axios.create({
 
 let onUnauthorized = null;
 let onForbidden = null;
-let configuredRouteGroup = null;
-let configuredTenancy = 'path';
 
 /**
  * Get the route group configured via `configureApi`.
@@ -23,7 +23,7 @@ let configuredTenancy = 'path';
  * @returns {string|null}
  */
 export function getRouteGroup() {
-  return configuredRouteGroup;
+  return apiConfig.routeGroup;
 }
 
 /**
@@ -34,11 +34,23 @@ export function getRouteGroup() {
  * - `'subdomain'`: the org is conveyed by the request HOST (e.g.
  *   `{org}.example.com`), so data-hook URLs omit the org segment entirely
  *   (`/api/{model}`). The org may still be tracked in context for display/filtering.
+ * - `'none'`: there is no organization at all, so data-hook URLs omit the org
+ *   segment (`/api/{model}`) and no org is required.
  *
- * @returns {'path'|'subdomain'}
+ * @returns {'path'|'subdomain'|'none'}
  */
 export function getTenancy() {
-  return configuredTenancy;
+  return apiConfig.tenancy;
+}
+
+/**
+ * Whether the configured route group is prepended to data-hook URLs
+ * (`configureApi({ routeGroupInDataPath: true })`). Defaults to `false`: the
+ * route group shapes auth URLs only.
+ * @returns {boolean}
+ */
+export function getRouteGroupInDataPath() {
+  return apiConfig.routeGroupInDataPath;
 }
 
 /**
@@ -51,7 +63,7 @@ export function getTenancy() {
  * @returns {string}
  */
 export function buildAuthPath(action, routeGroup) {
-  const group = routeGroup !== undefined ? routeGroup : configuredRouteGroup;
+  const group = routeGroup !== undefined ? routeGroup : apiConfig.routeGroup;
   return group ? `/${group}/auth/${action}` : `/auth/${action}`;
 }
 
@@ -64,14 +76,28 @@ export function buildAuthPath(action, routeGroup) {
  * @param {string|null} [options.routeGroup] - Optional route group used to build group-aware
  *   auth URLs. When set, auth paths become `/{routeGroup}/auth/*`; when unset, the legacy
  *   `/auth/*` paths are used. Pass `null` to clear a previously configured group.
- * @param {'path'|'subdomain'} [options.tenancy] - How the organization is conveyed to the
+ * @param {'path'|'subdomain'|'none'} [options.tenancy] - How the organization is conveyed to the
  *   backend by the data hooks (`useModelIndex`, `useModelShow`, etc.). Defaults to `'path'`
  *   (today's behavior): the org slug is prepended as a path segment (`/api/{org}/{model}`).
  *   Set to `'subdomain'` for domain/host-based route groups (e.g. `{org}.example.com`), where
  *   the org is carried by the host and the data hooks build `/api/{model}` with NO org segment.
- *   The org may still be tracked in context for display/filtering.
- * @param {Function} [options.onUnauthorized] - Callback when a 401 response is received.
- *   Defaults to redirecting to '/' on web. React Native apps should pass their own navigation logic.
+ *   The org may still be tracked in context for display/filtering. Set to `'none'` when there
+ *   is no organization at all (e.g. a prefix route group without a tenant): same URLs as
+ *   `'subdomain'`, and no org is required.
+ * @param {boolean} [options.routeGroupInDataPath] - When `true`, the configured `routeGroup` is
+ *   also prepended to data-hook URLs: `/api/{routeGroup}/{model}` with `tenancy: 'none'` and
+ *   `/api/{routeGroup}/{org}/{model}` with `tenancy: 'path'`. Defaults to `false` (the route
+ *   group shapes auth URLs only).
+ * @param {string} [options.nestedPath] - Path segment of the nested-operations endpoint used by
+ *   `useNestedOperations`. Defaults to `'nested'`, the servers' default; set it to whatever the
+ *   server's `nested.path` is configured to.
+ * @param {number} [options.timeout] - Request timeout in milliseconds. Defaults to none.
+ * @param {boolean} [options.withCredentials] - Whether requests send cookies. Defaults to
+ *   `true` (Sanctum cookie auth). Bearer-token apps (React Native) can pass `false`.
+ * @param {Function} [options.onUnauthorized] - Callback when a 401 response is received on any
+ *   request except login (a rejected login is reported by `login()` itself and does not end a
+ *   session). Defaults to redirecting to '/' on web. React Native apps should pass their own
+ *   navigation logic.
  * @param {Function} [options.onForbidden] - Callback when a 403 response is received (e.g. the
  *   user is authenticated but not a member of the route group). The token is NOT cleared.
  * @param {{getItem,setItem,removeItem}} [options.storage] - Custom storage adapter for the
@@ -112,12 +138,26 @@ export function configureApi(options = {}) {
     onForbidden = options.onForbidden || null;
   }
   if ('routeGroup' in options) {
-    configuredRouteGroup = options.routeGroup || null;
+    apiConfig.routeGroup = options.routeGroup || null;
   }
   if ('tenancy' in options) {
-    // Only 'subdomain' switches behavior; anything else (incl. undefined/null)
-    // falls back to the default 'path' so existing URLs stay byte-for-byte.
-    configuredTenancy = options.tenancy === 'subdomain' ? 'subdomain' : 'path';
+    // Only 'subdomain' and 'none' switch behavior; anything else (incl.
+    // undefined/null) falls back to the default 'path' so existing URLs stay
+    // byte-for-byte.
+    apiConfig.tenancy =
+      options.tenancy === 'subdomain' || options.tenancy === 'none' ? options.tenancy : 'path';
+  }
+  if ('routeGroupInDataPath' in options) {
+    apiConfig.routeGroupInDataPath = options.routeGroupInDataPath === true;
+  }
+  if (typeof options.nestedPath === 'string' && options.nestedPath.trim()) {
+    apiConfig.nestedPath = options.nestedPath.trim().replace(/^\/+|\/+$/g, '');
+  }
+  if (typeof options.timeout === 'number') {
+    api.defaults.timeout = options.timeout;
+  }
+  if (typeof options.withCredentials === 'boolean') {
+    api.defaults.withCredentials = options.withCredentials;
   }
 }
 
@@ -135,6 +175,16 @@ api.interceptors.request.use(
   }
 );
 
+/**
+ * Whether a request targets a login endpoint (`/auth/login` or
+ * `/{routeGroup}/auth/login`, whichever group the call used). A 401 there means
+ * wrong credentials, not an expired session.
+ */
+function isLoginRequest(config) {
+  const path = String(config?.url || '').split('?')[0];
+  return /(^|\/)auth\/login\/?$/.test(path);
+}
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
@@ -145,13 +195,16 @@ api.interceptors.response.use(
       return Promise.reject(new Error('CORS Error: Backend is not allowing requests from this origin. Please check your Rhino backend CORS configuration.'));
     }
 
-    if (error.response?.status === 401) {
-      // Clear token
+    if (error.response?.status === 401 && !isLoginRequest(error.config)) {
+      // The session is gone: clear it from storage and tell AuthProvider, which
+      // resets its own state from the event.
       storage.removeItem('token');
+      storage.removeItem('user');
+      events.emit('token', null);
       // Call custom handler or default web redirect
       if (onUnauthorized) {
         onUnauthorized();
-      } else if (typeof window !== 'undefined') {
+      } else if (typeof window !== 'undefined' && window.location) {
         window.location.href = '/';
       }
     }

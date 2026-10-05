@@ -124,3 +124,19 @@ describe('useOwner', () => {
     expect(api.get).not.toHaveBeenCalled();
   });
 });
+
+describe('useOwner — response envelope', () => {
+  it('unwraps the { data: [...] } envelope Rhino servers answer with', async () => {
+    useOrganization.mockReturnValue('my-org');
+    api.get.mockResolvedValue({ data: { data: [{ slug: 'other' }, { slug: 'my-org', name: 'My Org', users: [] }] } });
+    const { result } = renderHook(() => useOwner(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.data).toEqual({ slug: 'my-org', name: 'My Org', users: [] }));
+  });
+
+  it('unwraps a { data: {...} } envelope around a single organization', async () => {
+    useOrganization.mockReturnValue('my-org');
+    api.get.mockResolvedValue({ data: { data: { slug: 'my-org', name: 'My Org' } } });
+    const { result } = renderHook(() => useOwner(), { wrapper: createWrapper() });
+    await waitFor(() => expect(result.current.data).toEqual({ slug: 'my-org', name: 'My Org' }));
+  });
+});

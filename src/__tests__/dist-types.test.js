@@ -25,4 +25,13 @@ maybe('dist hand-written .d.ts emission', () => {
     expect(src).toContain('getTenancy');
     expect(src).toContain('declare const api');
   });
+
+  it('emits the declarations of the URL/key module and its config', () => {
+    expect(existsSync(resolve(distDir, 'lib/model.d.ts'))).toBe(true);
+    expect(existsSync(resolve(distDir, 'lib/api-config.d.ts'))).toBe(true);
+    expect(existsSync(resolve(distDir, 'lib/storage-keys.d.ts'))).toBe(true);
+    const index = readFileSync(resolve(distDir, 'index.d.ts'), 'utf8');
+    expect(index).toContain('ModelQueryHookOptions');
+    expect(readFileSync(resolve(distDir, 'lib/axios.d.ts'), 'utf8')).toContain('routeGroupInDataPath');
+  });
 });

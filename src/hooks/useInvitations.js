@@ -2,7 +2,18 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../lib/axios';
 import { storage } from '../lib/storage';
 import { events } from '../lib/events';
+import { dataPathPrefix } from '../lib/api-config';
 import { useOrganization } from './useOrganization';
+
+/**
+ * Invitations belong to an organization, so these hooks are tenant-only: the
+ * URL always carries the organization segment, whatever the tenancy mode, and
+ * they do nothing without an organization. With `routeGroupInDataPath` the
+ * configured route group comes first (`/{routeGroup}/{organization}/invitations`).
+ */
+function invitationsBase(organization) {
+  return `${dataPathPrefix()}/${organization}/invitations`;
+}
 
 /**
  * Hook to fetch invitations for the current organization
@@ -22,7 +33,7 @@ export function useInvitations(status = 'all') {
     };
   }
   
-  const url = `/${organization}/invitations${status !== 'all' ? `?status=${status}` : ''}`;
+  const url = `${invitationsBase(organization)}${status !== 'all' ? `?status=${status}` : ''}`;
   
   return useQuery({
     queryKey: ['invitations', organization, status],
@@ -45,7 +56,7 @@ export function useInviteUser() {
   
   return useMutation({
     mutationFn: ({ email, role_id, route_group }) => {
-      const url = `/${organization}/invitations`;
+      const url = invitationsBase(organization);
       // Only include route_group in the payload when provided (back-compat).
       const payload = { email, role_id };
       if (route_group !== undefined) {
@@ -73,7 +84,7 @@ export function useResendInvitation() {
   
   return useMutation({
     mutationFn: (id) => {
-      const url = `/${organization}/invitations/${id}/resend`;
+      const url = `${invitationsBase(organization)}/${id}/resend`;
       return api.post(url).then((res) => res.data);
     },
     onSuccess: () => {
@@ -96,7 +107,7 @@ export function useCancelInvitation() {
   
   return useMutation({
     mutationFn: (id) => {
-      const url = `/${organization}/invitations/${id}`;
+      const url = `${invitationsBase(organization)}/${id}`;
       return api.delete(url).then((res) => res.data);
     },
     onSuccess: () => {
@@ -107,6 +118,11 @@ export function useCancelInvitation() {
 
 /**
  * Hook to accept an invitation (public route, no organization required)
+ *
+ * The endpoint is the fixed `/invitations/accept`, outside every route group.
+ * Accepting does not issue a token, so it does not start a session: an
+ * unauthenticated invitee gets `requires_registration` back and registers with
+ * `useRegister`, which does.
  * @returns {Object} React Query mutation with mutate, mutateAsync, isLoading, error, isSuccess
  */
 export function useAcceptInvitation() {
@@ -136,6 +152,7 @@ export function useAcceptInvitation() {
     onSuccess: () => {
       // Invalidate user-related queries after accepting invitation
       queryClient.invalidateQueries({ queryKey: ['modelIndex', 'users'] });
+      queryClient.invalidateQueries({ queryKey: ['modelInfinite', 'users'] });
     },
   });
 }

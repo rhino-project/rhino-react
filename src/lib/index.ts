@@ -3,11 +3,23 @@
  */
 
 // API Client
-export { default as api, configureApi, buildAuthPath, getRouteGroup, getTenancy } from './axios';
+export {
+  default as api,
+  configureApi,
+  buildAuthPath,
+  getRouteGroup,
+  getTenancy,
+  getRouteGroupInDataPath,
+} from './axios';
+
+// URL building, query keys and plain fetchers (usable outside React)
+export { buildModelUrl, modelKeys, fetchModelIndex, fetchModelShow } from './model';
+export type { ModelQueryFilter } from './model';
 
 // Storage & Events adapters
 export {
   storage,
+  STORAGE_KEYS,
   createWebStorage,
   initStorage,
   setStorageAdapter,

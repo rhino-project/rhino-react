@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect } from 'react';
 import api, { buildAuthPath, configureApi } from '../lib/axios';
 import { storage } from '../lib/storage';
 import { events } from '../lib/events';
+import { apiConfig } from '../lib/api-config';
 
 const AuthContext = createContext(null);
 
@@ -20,6 +21,9 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
   const [token, setToken] = useState(() => storage.getItem('token'));
   const [isAuthenticated, setIsAuthenticated] = useState(!!storage.getItem('token'));
 
+  // Keeps storage and `isAuthenticated` in line with the token state. Writing
+  // the value storage already holds is harmless, and nothing here emits an
+  // event, so it cannot feed the subscription below.
   useEffect(() => {
     if (token) {
       storage.setItem('token', token);
@@ -30,6 +34,14 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
     }
   }, [token]);
 
+  // Follow token changes made outside the provider: a 401 response ends the
+  // session (the API client emits `null`), and `useRegister` starts one.
+  useEffect(() => {
+    return events.subscribe('token', (newToken) => {
+      setToken(newToken || null);
+    });
+  }, []);
+
   const login = async (email, password, options = {}) => {
     // Per-call routeGroup override; falls back to the provider/configured group.
     const callRouteGroup = 'routeGroup' in options ? options.routeGroup : routeGroup;
@@ -37,6 +49,12 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
       const response = await api.post(buildAuthPath('login', callRouteGroup), { email, password });
       const responseStatus = response?.status;
       const { token: newToken, user, organization, organization_slug, organizations, route_group } = response.data || {};
+      // Write the token before resolving, so a request issued right after
+      // `await login()` is already authenticated. The state update below only
+      // re-renders; the effect that mirrors it to storage is then a no-op.
+      if (newToken) {
+        storage.setItem('token', newToken);
+      }
       setToken(newToken);
 
       // Store user data if provided in login response
@@ -67,11 +85,17 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
       if (firstOrganizationSlug) {
         storage.setItem('last_organization', firstOrganizationSlug);
         storage.setItem('organization_slug', firstOrganizationSlug);
+        // Hooks that were mounted before the login read the organization from
+        // this event; without it they would stay idle until remounted.
+        events.emit('organization_slug', firstOrganizationSlug);
       }
 
       // Persist the route group used for this login. Prefer the value the
       // backend echoes back (`route_group`), otherwise the one we logged in with.
-      const resolvedRouteGroup = route_group != null ? route_group : (callRouteGroup ?? null);
+      // With no per-call or provider group, that is the group set through
+      // `configureApi({ routeGroup })`, which is what built the login URL.
+      const usedRouteGroup = callRouteGroup !== undefined ? callRouteGroup : apiConfig.routeGroup;
+      const resolvedRouteGroup = route_group != null ? route_group : (usedRouteGroup ?? null);
       if (resolvedRouteGroup) {
         storage.setItem('route_group', resolvedRouteGroup);
         events.emit('route_group', resolvedRouteGroup);
@@ -83,6 +107,7 @@ export function AuthProvider({ children, routeGroup, tenancy }) {
         organization: firstOrganizationSlug ? { slug: firstOrganizationSlug } : null,
         organization_slug: firstOrganizationSlug,
         route_group: resolvedRouteGroup,
+        token: newToken ?? null,
         status: responseStatus,
       };
     } catch (error) {

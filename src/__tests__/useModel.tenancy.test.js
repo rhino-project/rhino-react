@@ -120,12 +120,12 @@ describe('tenancy: path (default) — org segment is present', () => {
     expect(api.delete).toHaveBeenCalledWith('/my-org/users/42/force-delete');
   });
 
-  it('useNestedOperations POSTs /{org}/nested-operations', async () => {
+  it('useNestedOperations POSTs /{org}/nested', async () => {
     api.post.mockResolvedValue({ data: { success: true } });
     const ops = [{ action: 'create', model: 'blogs', data: {} }];
     const { result } = renderHook(() => useNestedOperations(), { wrapper: createWrapper() });
     await act(async () => { await result.current.mutateAsync({ operations: ops }); });
-    expect(api.post).toHaveBeenCalledWith('/my-org/nested-operations', { operations: ops });
+    expect(api.post).toHaveBeenCalledWith('/my-org/nested', { operations: ops });
   });
 
   it('useModelAudit hits /{org}/{model}/{id}/audit', async () => {
@@ -232,12 +232,12 @@ describe("tenancy: subdomain — org segment is omitted (org carried by host)", 
     expect(api.delete).toHaveBeenCalledWith('/users/42/force-delete');
   });
 
-  it('useNestedOperations POSTs /nested-operations (no org)', async () => {
+  it('useNestedOperations POSTs /nested (no org)', async () => {
     api.post.mockResolvedValue({ data: { success: true } });
     const ops = [{ action: 'create', model: 'blogs', data: {} }];
     const { result } = renderHook(() => useNestedOperations(), { wrapper: createWrapper() });
     await act(async () => { await result.current.mutateAsync({ operations: ops }); });
-    expect(api.post).toHaveBeenCalledWith('/nested-operations', { operations: ops });
+    expect(api.post).toHaveBeenCalledWith('/nested', { operations: ops });
   });
 
   it('useModelAudit hits /{model}/{id}/audit (no org)', async () => {

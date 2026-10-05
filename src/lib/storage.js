@@ -2,6 +2,9 @@
  * Storage adapter for web (localStorage).
  * On React Native, Metro bundler will resolve storage.native.js instead.
  */
+import { STORAGE_KEYS } from './storage-keys';
+
+export { STORAGE_KEYS };
 
 /**
  * Create a web storage adapter backed by localStorage.

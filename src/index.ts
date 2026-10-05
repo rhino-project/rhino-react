@@ -16,6 +16,7 @@ export { AuthProvider, useAuth } from './context/AuthContext';
 // Re-export storage and events adapters
 export {
   storage,
+  STORAGE_KEYS,
   createWebStorage,
   initStorage,
   setStorageAdapter,
@@ -43,4 +44,10 @@ export type {
   Role,
   RouteGroup,
   TenancyMode,
+  ModelQueryHookOptions,
+  ModelInfiniteQueryHookOptions,
+  ModelMutationHookOptions,
+  BuildModelUrlTarget,
+  ModelFetchContext,
 } from './types';
+export type { ModelQueryFilter } from './lib/model';

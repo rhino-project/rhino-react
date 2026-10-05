@@ -220,25 +220,33 @@ useAcceptInvitation().mutate({ token, route_group: 'driver' });
 
 ---
 
-## 🏢 Multitenancy: path vs. subdomain
+## 🏢 Multitenancy: path, subdomain or none
 
-The data hooks (`useModelIndex`, `useModelShow`, `useModelStore`, `useModelUpdate`,
-`useModelDelete`, `useModelTrashed`, `useModelRestore`, `useModelForceDelete`,
-`useModelAudit`, `useNestedOperations`) scope requests to the current organization.
-**How** the org is conveyed is controlled by the `tenancy` option:
+The data hooks (`useModelIndex`, `useModelInfinite`, `useModelShow`, `useModelStore`,
+`useModelUpdate`, `useModelDelete`, `useModelTrashed`, `useModelRestore`,
+`useModelForceDelete`, `useModelAudit`, `useNestedOperations`) scope requests to the
+current organization. **How** the org is conveyed is controlled by the `tenancy` option:
 
 | `tenancy` | Org carried by | Example URL | When to use |
 |-----------|----------------|-------------|-------------|
 | `'path'` (default) | URL path segment | `/api/{org}/{model}` | Path-prefix multitenancy (e.g. `example.com/{org}/...`) |
 | `'subdomain'` | Request **host** | `/api/{model}` | Domain/subdomain route groups (e.g. `{org}.example.com`) |
+| `'none'` | Nothing — there is no org | `/api/{model}` | Apps or route groups without tenants |
 
-The default is `'path'` — byte-for-byte the historical behavior. With
-`tenancy: 'subdomain'`, the org is conveyed by the host (the browser is already on
-`{org}.example.com`), so the hooks build `/api/{model}` with **no org segment**. The
-org is still tracked in context (`useOrganization`) for display/filtering and the hooks
-stay guarded by it (they're disabled / throw when no org is set) — it just isn't
-prepended to the path. This replaces the old workaround of avoiding `setOrganization`
-and hand-rolling a path helper.
+The default is `'path'`: the org slug is a path segment and the hooks need one (queries
+stay idle and mutations throw without it). With `'subdomain'` the org is conveyed by the
+host and with `'none'` there is no org at all, so in both the hooks build `/api/{model}`
+and run with no org set.
+
+Add `routeGroupInDataPath: true` to put the configured `routeGroup` in front of data
+URLs as well (by default it only shapes the auth URLs):
+
+| Setup | `configureApi` | Data URL |
+|-------|----------------|----------|
+| Tenant in the path (default) | `{}` | `/api/{org}/{model}` |
+| Tenant in the host | `{ tenancy: 'subdomain' }` | `/api/{model}` |
+| Prefix group, no tenant | `{ tenancy: 'none', routeGroup: 'driver', routeGroupInDataPath: true }` | `/api/driver/{model}` |
+| Prefix group with tenant | `{ routeGroup: 'client', routeGroupInDataPath: true }` | `/api/client/{org}/{model}` |
 
 ```tsx
 import { configureApi, AuthProvider } from '@rhino-dev/rhino-react';

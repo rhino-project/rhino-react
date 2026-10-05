@@ -14,6 +14,8 @@ export interface LoginResult {
   organization_slug?: string;
   /** The route group the user logged into, if any. */
   route_group?: RouteGroup;
+  /** The bearer token of the session that was started. Already in storage when `login()` resolves. */
+  token?: string | null;
   error?: string;
   /**
    * The HTTP status of the login response. On failure this lets callers
@@ -38,8 +40,9 @@ export function AuthProvider(props: {
   /**
    * How the organization is conveyed to the backend by the data hooks.
    * `'path'` (default) prepends the org slug (`/api/{org}/{model}`); `'subdomain'`
-   * omits it (`/api/{model}`) because the org is carried by the host.
+   * omits it (`/api/{model}`) because the org is carried by the host; `'none'` omits
+   * it because there is no organization at all.
    */
-  tenancy?: 'path' | 'subdomain';
+  tenancy?: 'path' | 'subdomain' | 'none';
 }): ReactElement;
 export function useAuth(): AuthContextValue;

@@ -2,6 +2,60 @@
  * TypeScript type definitions for @rhino/client
  */
 
+import type {
+  QueryKey,
+  UseInfiniteQueryOptions,
+  UseMutationOptions,
+  UseQueryOptions,
+} from '@tanstack/react-query';
+
+/**
+ * TanStack Query options accepted as the trailing parameter of the query hooks
+ * (`useModelIndex`, `useModelShow`, `useModelTrashed`, `useModelComputedAttributes`,
+ * `useModelAudit`): everything `useQuery` takes except `queryKey` and `queryFn`,
+ * which the hook owns. `enabled` is AND-ed with the hook's own guard.
+ */
+export type ModelQueryHookOptions<TQueryFnData, TData = TQueryFnData> = Omit<
+  UseQueryOptions<TQueryFnData, Error, TData>,
+  'queryKey' | 'queryFn'
+>;
+
+/**
+ * TanStack Query options accepted by `useModelInfinite`: everything
+ * `useInfiniteQuery` takes except the key, the fetcher and the page-param
+ * functions, which the hook derives from the pagination headers.
+ */
+export type ModelInfiniteQueryHookOptions<TQueryFnData, TData> = Omit<
+  UseInfiniteQueryOptions<TQueryFnData, Error, TData, QueryKey, number>,
+  'queryKey' | 'queryFn' | 'initialPageParam' | 'getNextPageParam' | 'getPreviousPageParam'
+>;
+
+/**
+ * TanStack Query options accepted as the trailing parameter of the mutation
+ * hooks: everything `useMutation` takes except `mutationFn`. The hook's cache
+ * invalidation runs before the `onSuccess` given here.
+ */
+export type ModelMutationHookOptions<TData, TVariables, TContext = unknown> = Omit<
+  UseMutationOptions<TData, Error, TVariables, TContext>,
+  'mutationFn'
+>;
+
+/** What `buildModelUrl` should address besides the model itself. */
+export interface BuildModelUrlTarget {
+  /** Record id — a show URL, or with `suffix: 'audit'` an audit URL. */
+  id?: string | number | null;
+  /** Organization slug. Read from storage when omitted. */
+  organization?: string | null;
+  /** Path suffix: `'computed'`, `'trashed'`, `'audit'`, or any other trailing segment. */
+  suffix?: string;
+}
+
+/** Context for the plain fetchers (`fetchModelIndex`, `fetchModelShow`). */
+export interface ModelFetchContext {
+  /** Organization slug. Read from storage when omitted. */
+  organization?: string | null;
+}
+
 /**
  * Pagination metadata extracted from API response headers
  */
@@ -171,8 +225,10 @@ export type RouteGroup = string | null;
  *   (`/api/{org}/{model}`) — path-prefix multitenancy.
  * - `'subdomain'`: the org is carried by the request HOST (e.g. `{org}.example.com`),
  *   so the data hooks build `/api/{model}` with NO org segment.
+ * - `'none'`: there is no organization at all (e.g. a prefix route group without a
+ *   tenant), so the data hooks build `/api/{model}` and require no org.
  */
-export type TenancyMode = 'path' | 'subdomain';
+export type TenancyMode = 'path' | 'subdomain' | 'none';
 
 /**
  * Per-call options for `login` / `logout`.
@@ -192,6 +248,8 @@ export interface LoginResult {
   organization_slug?: string;
   /** The route group the user logged into, if any (group-aware auth). */
   route_group?: RouteGroup;
+  /** The bearer token of the session that was started. Already in storage when `login()` resolves. */
+  token?: string | null;
   error?: string;
   /**
    * The HTTP status of the login response. On failure this lets callers

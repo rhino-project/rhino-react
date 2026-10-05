@@ -76,6 +76,22 @@ describe('barrel exports – src/index.ts', () => {
   });
 });
 
+describe('barrel exports – URL building, keys, fetchers, client config', () => {
+  it('should export them from the main entry point', async () => {
+    const mod = await import('../index');
+
+    expect(mod.useModelInfinite).toBeTypeOf('function');
+    expect(mod.buildModelUrl).toBeTypeOf('function');
+    expect(mod.fetchModelIndex).toBeTypeOf('function');
+    expect(mod.fetchModelShow).toBeTypeOf('function');
+    expect(mod.getRouteGroupInDataPath).toBeTypeOf('function');
+    expect(Object.keys(mod.modelKeys).sort()).toEqual([
+      'all', 'audit', 'computed', 'index', 'infinite', 'show', 'trashed',
+    ]);
+    expect(mod.STORAGE_KEYS).toContain('route_group');
+  });
+});
+
 describe('barrel exports – hooks/index.ts', () => {
   it('should export all hooks from hooks barrel', async () => {
     const mod = await import('../hooks/index');

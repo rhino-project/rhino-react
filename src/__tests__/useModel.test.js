@@ -538,7 +538,7 @@ describe('useNestedOperations', () => {
     }).toThrow('Organization slug is required');
   });
 
-  it('should POST to /org/nested-operations with operations array', async () => {
+  it('should POST to /org/nested with operations array', async () => {
     useOrganization.mockReturnValue('my-org');
     api.post.mockResolvedValue({ data: { success: true } });
 
@@ -553,7 +553,7 @@ describe('useNestedOperations', () => {
       await result.current.mutateAsync({ operations });
     });
 
-    expect(api.post).toHaveBeenCalledWith('/my-org/nested-operations', { operations });
+    expect(api.post).toHaveBeenCalledWith('/my-org/nested', { operations });
   });
 
   it('should invalidate all affected models deduped', async () => {

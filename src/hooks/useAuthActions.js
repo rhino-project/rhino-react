@@ -10,6 +10,11 @@ import { events } from '../lib/events';
  * POST `{authBase}/auth/register` with
  * `{ token, name, email, password, password_confirmation }`.
  *
+ * A successful registration starts a session, exactly like `login()`: the
+ * returned token, user and organization are written to storage before the
+ * mutation resolves and `AuthProvider` becomes authenticated, so a request
+ * issued right after `await register.mutateAsync(...)` carries the bearer token.
+ *
  * @returns {Object} React Query mutation. Returns the backend response (token + user).
  *
  * @example
@@ -28,6 +33,19 @@ export function useRegister() {
           if (data.route_group) {
             storage.setItem('route_group', data.route_group);
             events.emit('route_group', data.route_group);
+          }
+          // The server issues a token on registration: start the session.
+          if (data.token) {
+            storage.setItem('token', data.token);
+            if (data.user) {
+              storage.setItem('user', JSON.stringify(data.user));
+            }
+            if (data.organization_slug) {
+              storage.setItem('last_organization', data.organization_slug);
+              storage.setItem('organization_slug', data.organization_slug);
+              events.emit('organization_slug', data.organization_slug);
+            }
+            events.emit('token', data.token);
           }
           return data;
         });

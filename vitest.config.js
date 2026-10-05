@@ -1,8 +1,17 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      // Optional peer, not installed here: tests of storage.native.js get a fake.
+      '@react-native-async-storage/async-storage': fileURLToPath(
+        new URL('./src/__tests__/helpers/asyncStorageFake.js', import.meta.url),
+      ),
+    },
+  },
   test: {
     environment: 'jsdom',
     globals: true,

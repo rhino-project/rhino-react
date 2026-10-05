@@ -103,6 +103,24 @@ describe('useUserRole', () => {
     expect(result.current.roleIds).toEqual([10]);
   });
 
+  it('should resolve roles from the { data: [...] } envelope Rhino servers answer with', async () => {
+    localStorage.setItem('user', JSON.stringify({ id: 1, name: 'Alice' }));
+    useOrganization.mockReturnValue('my-org');
+    useOwner.mockReturnValue({
+      data: { slug: 'my-org', users: [{ id: 1, name: 'Alice', pivot: { role_id: 10 } }] },
+      isLoading: false,
+    });
+    api.get.mockResolvedValue({
+      data: { data: [{ id: 10, name: 'Admin', slug: 'admin' }, { id: 20, name: 'Assistant', slug: 'assistant' }] },
+    });
+
+    const { result } = renderHook(() => useUserRole(), { wrapper: createWrapper() });
+
+    await waitFor(() => expect(result.current.roles).toHaveLength(1));
+    expect(result.current.hasRole('admin')).toBe(true);
+    expect(result.current.hasRole('assistant')).toBe(false);
+  });
+
   it('should resolve multiple roles for the current user', async () => {
     localStorage.setItem('user', JSON.stringify({ id: 1, name: 'Alice' }));
     useOrganization.mockReturnValue('my-org');

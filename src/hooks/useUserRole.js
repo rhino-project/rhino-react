@@ -4,10 +4,16 @@ import api from '../lib/axios';
 import { useOrganization } from './useOrganization';
 import { useOwner } from './useOwner';
 import { storage } from '../lib/storage';
+import { dataPathPrefix } from '../lib/api-config';
+import { normalizeList } from '../lib/normalize-response';
 
 /**
  * Hook to get the current user's roles in the current organization.
  * Returns roles info and a hasRole() helper for role-based UI logic.
+ *
+ * Tenant-only: roles are read from `/{organization}/roles` whatever the tenancy
+ * mode (`/{routeGroup}/{organization}/roles` with `routeGroupInDataPath`), and
+ * nothing is requested without an organization.
  *
  * @returns {{ roles: object[], roleIds: number[], isLoading: boolean, hasRole: (name: string) => boolean }}
  *
@@ -22,8 +28,9 @@ export function useUserRole() {
   const { data: allRoles, isLoading: isLoadingRoles } = useQuery({
     queryKey: ['roles', slug],
     queryFn: async () => {
-      const response = await api.get(`/${slug}/roles`);
-      return Array.isArray(response.data) ? response.data : [];
+      const response = await api.get(`${dataPathPrefix()}/${slug}/roles`);
+      // `{ data: [...] }` envelope or a bare array.
+      return normalizeList(response.data);
     },
     enabled: !!slug,
   });

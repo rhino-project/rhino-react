@@ -3,7 +3,8 @@ import { useOwner } from './useOwner';
 
 /**
  * Hook to check if the current organization exists and is valid
- * Uses useOwner which already fetches the organization
+ * Uses useOwner which already fetches the organization, so it is tenant-only
+ * in the same way and builds no URL of its own.
  * @returns {Object} { exists: boolean, isLoading: boolean, error: Error | null, data: Organization | null }
  */
 export function useOrganizationExists() {

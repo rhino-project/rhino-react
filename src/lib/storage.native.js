@@ -7,6 +7,9 @@
  * Call `await initStorage()` once at app startup before rendering.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORAGE_KEYS } from './storage-keys';
+
+export { STORAGE_KEYS };
 
 const cache = {};
 let initialized = false;
@@ -24,8 +27,7 @@ let initialized = false;
  * }
  */
 export async function initStorage() {
-  const keys = ['token', 'user', 'organization_slug', 'last_organization'];
-  const pairs = await AsyncStorage.multiGet(keys);
+  const pairs = await AsyncStorage.multiGet([...STORAGE_KEYS]);
   for (const [key, value] of pairs) {
     if (value !== null) {
       cache[key] = value;
